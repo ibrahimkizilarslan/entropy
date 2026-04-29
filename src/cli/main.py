@@ -23,6 +23,7 @@ from src.cli.commands import (
     cmd_status,
     cmd_inject,
 )
+from src.cli.observability_cmds import cmd_logs, cmd_report
 
 # ---------------------------------------------------------------------------
 # Application bootstrap
@@ -45,6 +46,8 @@ app.command("start",  help="Start the chaos engine.")(cmd_start)
 app.command("stop",   help="Stop a running background chaos engine.")(cmd_stop)
 app.command("status", help="Show the current chaos engine status.")(cmd_status)
 app.command("inject", help="Manually inject a single chaos action.")(cmd_inject)
+app.command("logs",   help="View the chaos engine log file.")(cmd_logs)
+app.command("report", help="Show a statistics report from the log.")(cmd_report)
 
 console = Console()
 
@@ -104,7 +107,7 @@ def _version_table() -> Table:
     table.add_row("Version", f"[bold green]{__version__}[/bold green]")
     table.add_row("Python", sys.version.split()[0])
     table.add_row("Platform", platform.system())
-    table.add_row("Status", "[bold yellow]Phase 4 — CLI Commands[/bold yellow]")
+    table.add_row("Status", "[bold yellow]Phase 6 — Observability[/bold yellow]")
     table.add_row("Scope", "Local Docker · Developer Tooling")
 
     return table
