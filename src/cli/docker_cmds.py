@@ -22,8 +22,8 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import box
 
-from devchaoskit.engine.docker_client import DockerClient
-from devchaoskit.engine.exceptions import (
+from src.engine.docker_client import DockerClient
+from src.engine.exceptions import (
     ChaosKitError,
     DockerConnectionError,
     ContainerNotFoundError,

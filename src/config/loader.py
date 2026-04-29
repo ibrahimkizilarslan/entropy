@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from devchaoskit.config.schema import ChaosConfig, SafetyConfig
+from src.config.schema import ChaosConfig, SafetyConfig
 
 
 # ---------------------------------------------------------------------------

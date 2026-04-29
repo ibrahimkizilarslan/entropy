@@ -34,10 +34,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
-from devchaoskit.config.schema import ChaosConfig
-from devchaoskit.engine.actions import dispatch
-from devchaoskit.engine.docker_client import ContainerInfo, DockerClient
-from devchaoskit.engine.exceptions import ChaosKitError
+from src.config.schema import ChaosConfig
+from src.engine.actions import dispatch
+from src.engine.docker_client import ContainerInfo, DockerClient
+from src.engine.exceptions import ChaosKitError
 
 
 # ---------------------------------------------------------------------------

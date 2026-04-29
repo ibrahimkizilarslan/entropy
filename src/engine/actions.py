@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from devchaoskit.engine.docker_client import ContainerInfo, DockerClient
+from src.engine.docker_client import ContainerInfo, DockerClient
 
 
 # ---------------------------------------------------------------------------

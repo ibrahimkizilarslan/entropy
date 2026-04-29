@@ -3,7 +3,7 @@ DevChaosKit — Background worker entry point.
 
 This module is launched by `devchaos start --detach` via:
 
-    python -m devchaoskit._worker --config <path> [--dry-run] [--max-down N] [--cooldown N]
+    python -m src._worker --config <path> [--dry-run] [--max-down N] [--cooldown N]
 
 It runs the ChaosEngine in the foreground of the detached subprocess,
 writing state to .devchaos/state.json and structured logs to
@@ -20,15 +20,15 @@ import signal
 import sys
 from pathlib import Path
 
-from devchaoskit.config.loader import ConfigError, load_config
-from devchaoskit.engine.chaos_engine import ChaosEngine, InjectionEvent
-from devchaoskit.engine.docker_client import DockerConnectionError
-from devchaoskit.utils.logger import ChaosLogger
-from devchaoskit.utils.state import StateManager
+from src.config.loader import ConfigError, load_config
+from src.engine.chaos_engine import ChaosEngine, InjectionEvent
+from src.engine.docker_client import DockerConnectionError
+from src.utils.logger import ChaosLogger
+from src.utils.state import StateManager
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="devchaoskit._worker", add_help=False)
+    parser = argparse.ArgumentParser(prog="src._worker", add_help=False)
     parser.add_argument("--config", default="chaos.yaml")
     # Safety overrides passed from `devchaos start --detach`
     parser.add_argument("--dry-run", dest="dry_run", action="store_true", default=None)

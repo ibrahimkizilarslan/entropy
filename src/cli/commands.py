@@ -36,13 +36,13 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
-from devchaoskit.config.loader import ConfigError, load_config
-from devchaoskit.engine.actions import dispatch
-from devchaoskit.engine.chaos_engine import ChaosEngine, InjectionEvent
-from devchaoskit.engine.docker_client import DockerClient, DockerConnectionError
-from devchaoskit.engine.exceptions import ChaosKitError
-from devchaoskit.utils.logger import ChaosLogger
-from devchaoskit.utils.state import StateManager
+from src.config.loader import ConfigError, load_config
+from src.engine.actions import dispatch
+from src.engine.chaos_engine import ChaosEngine, InjectionEvent
+from src.engine.docker_client import DockerClient, DockerConnectionError
+from src.engine.exceptions import ChaosKitError
+from src.utils.logger import ChaosLogger
+from src.utils.state import StateManager
 
 # ---------------------------------------------------------------------------
 # Module-level singletons
@@ -231,7 +231,7 @@ def _start_detached(config_path: Path, cfg) -> None:
         [
             sys.executable,
             "-m",
-            "devchaoskit._worker",
+            "src._worker",
             "--config",
             str(config_path.resolve()),
             *extra_args,
@@ -495,7 +495,7 @@ def cmd_inject(
       devchaos inject restart service-b --config ./my-chaos.yaml
     """
     # Validate action name
-    from devchaoskit.engine.actions import ACTION_HANDLERS
+    from src.engine.actions import ACTION_HANDLERS
     if action not in ACTION_HANDLERS:
         _err_panel(
             f"Unknown action '{action}'.\n"

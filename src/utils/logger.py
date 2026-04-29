@@ -34,8 +34,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from devchaoskit.config.schema import ChaosConfig
-    from devchaoskit.engine.chaos_engine import InjectionEvent
+    from src.config.schema import ChaosConfig
+    from src.engine.chaos_engine import InjectionEvent
 
 # ---------------------------------------------------------------------------
 # Custom log levels (sit between DEBUG and INFO to avoid noise in default
@@ -85,7 +85,7 @@ class ChaosLogger:
 
     def __init__(self, log_file: Path) -> None:
         self._log_file = log_file
-        self._logger = logging.getLogger(f"devchaoskit.engine.{id(self)}")
+        self._logger = logging.getLogger(f"src.engine.{id(self)}")
         self._logger.setLevel(logging.DEBUG)
         self._logger.propagate = False   # Don't bubble up to root logger
 

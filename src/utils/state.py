@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from devchaoskit.engine.chaos_engine import InjectionEvent
+from src.engine.chaos_engine import InjectionEvent
 
 
 # ---------------------------------------------------------------------------

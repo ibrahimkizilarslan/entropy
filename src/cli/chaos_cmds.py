@@ -26,9 +26,9 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
-from devchaoskit.config.loader import ConfigError, load_config
-from devchaoskit.engine.chaos_engine import ChaosEngine, EngineStatus, InjectionEvent
-from devchaoskit.engine.docker_client import DockerConnectionError
+from src.config.loader import ConfigError, load_config
+from src.engine.chaos_engine import ChaosEngine, EngineStatus, InjectionEvent
+from src.engine.docker_client import DockerConnectionError
 
 
 # ---------------------------------------------------------------------------

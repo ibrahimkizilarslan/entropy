@@ -14,10 +14,10 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
-from devchaoskit import __version__
-from devchaoskit.cli.docker_cmds import docker_app
-from devchaoskit.cli.chaos_cmds import chaos_app
-from devchaoskit.cli.commands import (
+from src import __version__
+from src.cli.docker_cmds import docker_app
+from src.cli.chaos_cmds import chaos_app
+from src.cli.commands import (
     cmd_start,
     cmd_stop,
     cmd_status,

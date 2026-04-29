@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "devchaoskit"
+name = "devchaos-tool"
 version = "0.1.0"
 description = "A local chaos engineering toolkit for Docker-based microservices"
 readme = "README.md"
@@ -30,11 +30,11 @@ dependencies = [
 ]
 
 [project.scripts]
-devchaos = "devchaoskit.cli.main:app"
+devchaos = "src.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["devchaoskit*"]
+include = ["src*"]
 
 [project.optional-dependencies]
 dev = [
