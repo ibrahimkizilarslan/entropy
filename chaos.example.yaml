@@ -1,0 +1,21 @@
+# DevChaosKit — Example chaos configuration
+# Copy this file to chaos.yaml and edit to match your docker-compose services.
+
+# How often (seconds) to select and inject a chaos action
+interval: 10
+
+# Docker container names or docker-compose service names to target
+targets:
+  - service-a
+  - service-b
+
+# Actions to apply (supported: stop, restart)
+actions:
+  - stop
+  - restart
+
+# Safety settings (Phase 5)
+safety:
+  max_down: 1          # Maximum containers stopped simultaneously
+  cooldown: 30         # Seconds to wait between injections
+  dry_run: false       # If true, log actions without executing them
