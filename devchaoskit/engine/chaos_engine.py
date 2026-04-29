@@ -5,6 +5,12 @@ The ChaosEngine drives interval-based random fault injection into Docker
 containers. It runs in a dedicated background thread so the CLI remains
 responsive while chaos is in progress.
 
+Safety mechanisms (Phase 5)
+---------------------------
+- **max_down**   : hard cap on concurrent stopped containers (checked every cycle)
+- **cooldown**   : minimum seconds between any two injections (checked every cycle)
+- **dry_run**    : log all actions without touching Docker (config or CLI flag)
+
 Lifecycle
 ---------
 1. ``engine.start()``  — spawns the worker thread, begins injection loop
@@ -13,10 +19,10 @@ Lifecycle
 
 Thread safety
 -------------
-All shared mutable state (``_running``, ``_last_event``, ``_down_set``) is
-protected by a single ``threading.Lock``. The worker thread holds the lock
-only during state updates, never during sleeps or Docker calls, so the main
-thread never blocks for long.
+All shared mutable state (``_running``, ``_last_event``, ``_down_set``,
+``_last_injection_time``) is protected by a single ``threading.Lock``.
+The worker thread holds the lock only during state updates, never during
+sleeps or Docker calls, so the main thread never blocks for long.
 """
 
 from __future__ import annotations
@@ -77,6 +83,8 @@ class EngineStatus:
     down_containers: set[str]
     last_event: Optional[InjectionEvent]
     history: list[InjectionEvent]
+    last_injection_time: Optional[datetime] = None
+    cooldown_remaining: float = 0.0   # Seconds until next injection allowed (0 = ready)
 
 
 # ---------------------------------------------------------------------------
@@ -86,25 +94,32 @@ class EngineStatus:
 
 class ChaosEngine:
     """
-    Interval-based chaos injection engine.
+    Interval-based chaos injection engine with full safety controls.
 
     Parameters
     ----------
     config:
-        Validated ChaosConfig instance.
+        Validated ChaosConfig instance. Safety settings (max_down, cooldown,
+        dry_run) are read from ``config.safety`` each cycle so live overrides
+        are respected without restarting the engine.
     on_event:
-        Optional callback invoked after every injection attempt (in the
+        Optional callback invoked after every injection attempt (runs in the
         worker thread). Receives the InjectionEvent. Use this to stream
-        live output to the CLI.
+        live output to the CLI or write state files.
+    logger:
+        Optional ChaosLogger instance. When provided, all actions, skips,
+        and lifecycle events are written to the structured log file.
     """
 
     def __init__(
         self,
         config: ChaosConfig,
         on_event: Optional[callable] = None,
+        logger=None,   # Optional[ChaosLogger] — avoid circular import at runtime
     ) -> None:
         self._config = config
         self._on_event = on_event
+        self._logger = logger
 
         # Thread control
         self._stop_event = threading.Event()
@@ -114,9 +129,10 @@ class ChaosEngine:
         # Shared mutable state (always accessed under _lock)
         self._running: bool = False
         self._cycle_count: int = 0
-        self._down_set: set[str] = set()          # containers currently down
+        self._down_set: set[str] = set()
         self._last_event: Optional[InjectionEvent] = None
         self._history: list[InjectionEvent] = []
+        self._last_injection_time: Optional[datetime] = None   # Phase 5: cooldown tracking
 
     # ------------------------------------------------------------------
     # Public control API
@@ -144,8 +160,8 @@ class ChaosEngine:
         Parameters
         ----------
         timeout:
-            Maximum seconds to wait for the worker thread to finish its
-            current sleep/operation before forcibly returning.
+            Maximum seconds to wait for the worker thread to finish before
+            forcibly returning.
         """
         self._stop_event.set()
         if self._thread is not None:
@@ -156,6 +172,14 @@ class ChaosEngine:
     def status(self) -> EngineStatus:
         """Return a thread-safe snapshot of engine state."""
         with self._lock:
+            last_inj = self._last_injection_time
+            cooldown = self._config.safety.cooldown
+            if cooldown > 0 and last_inj is not None:
+                elapsed = (datetime.now(tz=timezone.utc) - last_inj).total_seconds()
+                cooldown_remaining = max(0.0, float(cooldown) - elapsed)
+            else:
+                cooldown_remaining = 0.0
+
             return EngineStatus(
                 running=self._running,
                 config=self._config,
@@ -163,6 +187,8 @@ class ChaosEngine:
                 down_containers=set(self._down_set),
                 last_event=self._last_event,
                 history=list(self._history),
+                last_injection_time=last_inj,
+                cooldown_remaining=cooldown_remaining,
             )
 
     # ------------------------------------------------------------------
@@ -171,32 +197,53 @@ class ChaosEngine:
 
     def _run_loop(self) -> None:
         """Main loop executed in the worker thread."""
+        if self._logger:
+            self._logger.log_start(self._config)
+
         with DockerClient(allowed_targets=set(self._config.targets)) as docker:
             while not self._stop_event.is_set():
                 self._run_cycle(docker)
 
-                # Interruptible sleep: break into 1-second slices so
+                # Interruptible sleep — break into 1-second slices so
                 # stop() wakes up quickly even during a long interval.
-                interval = self._config.interval
-                for _ in range(interval):
+                for _ in range(self._config.interval):
                     if self._stop_event.is_set():
                         break
                     time.sleep(1)
 
         with self._lock:
             self._running = False
+            cycle_count = self._cycle_count
+            injection_count = len(self._history)
+
+        if self._logger:
+            self._logger.log_stop(cycle_count, injection_count)
 
     def _run_cycle(self, docker: DockerClient) -> None:
-        """Execute one chaos injection cycle."""
+        """Execute one chaos injection cycle with all safety checks."""
         with self._lock:
             self._cycle_count += 1
             down_count = len(self._down_set)
+            last_inj = self._last_injection_time
 
-        # Safety: do not exceed max_down
+        # ── Safety check 1: Cooldown ─────────────────────────────────
+        cooldown = self._config.safety.cooldown
+        if cooldown > 0 and last_inj is not None:
+            elapsed = (datetime.now(tz=timezone.utc) - last_inj).total_seconds()
+            remaining = cooldown - elapsed
+            if remaining > 0:
+                if self._logger:
+                    self._logger.log_cooldown_skip(remaining)
+                return   # Still in cooldown — skip this cycle
+
+        # ── Safety check 2: Max-down ─────────────────────────────────
         if down_count >= self._config.safety.max_down:
-            return
+            if self._logger:
+                with self._lock:
+                    self._logger.log_max_down_skip(set(self._down_set))
+            return   # Too many containers already down
 
-        # Pick a random target that is NOT already down
+        # ── Target selection ─────────────────────────────────────────
         with self._lock:
             already_down = set(self._down_set)
 
@@ -207,10 +254,14 @@ class ChaosEngine:
         target = random.choice(available)
         action = random.choice(self._config.actions)
 
+        # ── Execute ──────────────────────────────────────────────────
         event = self._execute(docker, action, target)
 
         with self._lock:
-            # Track containers we stopped (so we know what's "down")
+            # Track cooldown timestamp (after any injection, success or failure)
+            self._last_injection_time = event.timestamp
+
+            # Update down-set based on action result
             if event.success and action == "stop":
                 self._down_set.add(target)
             elif action == "restart":
@@ -219,11 +270,16 @@ class ChaosEngine:
             self._last_event = event
             self._history.append(event)
 
+        # Log to file
+        if self._logger:
+            self._logger.log_injection(event)
+
+        # Notify CLI callback
         if self._on_event:
             try:
                 self._on_event(event)
             except Exception:
-                pass  # Never let a callback crash the engine
+                pass   # Never let a callback crash the engine
 
     def _execute(
         self, docker: DockerClient, action: str, target: str

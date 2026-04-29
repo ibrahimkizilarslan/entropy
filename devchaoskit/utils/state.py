@@ -89,6 +89,8 @@ class StateManager:
         down_containers: set[str],
         history: list[InjectionEvent],
         dry_run: bool,
+        cooldown_remaining: float = 0.0,
+        cooldown_total: int = 0,
     ) -> None:
         """Convenience wrapper that serialises engine state into the state file."""
         last = history[-1] if history else None
@@ -100,6 +102,8 @@ class StateManager:
                 "dry_run": dry_run,
                 "cycle_count": cycle_count,
                 "down_containers": sorted(down_containers),
+                "cooldown_remaining": round(cooldown_remaining, 1),
+                "cooldown_total": cooldown_total,
                 "last_event": _serialise_event(last),
                 "history": [_serialise_event(e) for e in history[-50:]],
             }

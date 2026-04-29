@@ -41,6 +41,7 @@ from devchaoskit.engine.actions import dispatch
 from devchaoskit.engine.chaos_engine import ChaosEngine, InjectionEvent
 from devchaoskit.engine.docker_client import DockerClient, DockerConnectionError
 from devchaoskit.engine.exceptions import ChaosKitError
+from devchaoskit.utils.logger import ChaosLogger
 from devchaoskit.utils.state import StateManager
 
 # ---------------------------------------------------------------------------
@@ -164,6 +165,23 @@ def cmd_start(
         "-d",
         help="Run engine in background (daemon mode).",
     ),
+    dry_run: Optional[bool] = typer.Option(
+        None,
+        "--dry-run/--no-dry-run",
+        help="Override config: log actions without executing them.",
+    ),
+    max_down: Optional[int] = typer.Option(
+        None,
+        "--max-down",
+        min=1,
+        help="Override config: max containers stopped simultaneously.",
+    ),
+    cooldown: Optional[int] = typer.Option(
+        None,
+        "--cooldown",
+        min=0,
+        help="Override config: min seconds between injections.",
+    ),
 ) -> None:
     """Start the chaos engine. Use --detach / -d to run in the background."""
     # --- Validate config first ---
@@ -172,6 +190,14 @@ def cmd_start(
     except ConfigError as exc:
         _err_panel(str(exc), "Config Error")
         raise typer.Exit(1)
+
+    # --- Apply CLI safety overrides (Phase 5) ---
+    if dry_run is not None:
+        cfg.safety.dry_run = dry_run
+    if max_down is not None:
+        cfg.safety.max_down = max_down
+    if cooldown is not None:
+        cfg.safety.cooldown = cooldown
 
     # --- Check if already running ---
     pid = state.running_pid()
@@ -184,15 +210,22 @@ def cmd_start(
         raise typer.Exit(1)
 
     if detach:
-        _start_detached(config_path)
+        _start_detached(config_path, cfg)
     else:
         _start_foreground(cfg, config_path)
 
 
-def _start_detached(config_path: Path) -> None:
+def _start_detached(config_path: Path, cfg) -> None:
     """Spawn the engine as a detached background subprocess."""
     state.ensure_dir()
     log_path = state.log_file
+
+    # Pass any safety overrides that were applied to cfg
+    extra_args: list[str] = [
+        "--dry-run" if cfg.safety.dry_run else "--no-dry-run",
+        "--max-down", str(cfg.safety.max_down),
+        "--cooldown", str(cfg.safety.cooldown),
+    ]
 
     proc = subprocess.Popen(
         [
@@ -201,10 +234,11 @@ def _start_detached(config_path: Path) -> None:
             "devchaoskit._worker",
             "--config",
             str(config_path.resolve()),
+            *extra_args,
         ],
         stdout=open(log_path, "w"),
         stderr=subprocess.STDOUT,
-        start_new_session=True,     # Detach from controlling terminal
+        start_new_session=True,
         close_fds=True,
     )
 
@@ -212,6 +246,8 @@ def _start_detached(config_path: Path) -> None:
         Panel(
             f"[bold]PID:[/bold]     {proc.pid}\n"
             f"[bold]Config:[/bold]  {config_path}\n"
+            f"[bold]Mode:[/bold]    {'[yellow]DRY-RUN[/yellow]' if cfg.safety.dry_run else '[green]LIVE[/green]'}\n"
+            f"[bold]Cooldown:[/bold] {cfg.safety.cooldown}s  [bold]Max-down:[/bold] {cfg.safety.max_down}\n"
             f"[bold]Logs:[/bold]    {log_path}\n\n"
             "Run [bold cyan]devchaos status[/bold cyan] to monitor.\n"
             "Run [bold cyan]devchaos stop[/bold cyan]   to terminate.",
@@ -232,8 +268,9 @@ def _start_foreground(cfg, config_path: Path) -> None:
             f"[bold]Targets:[/bold]  {', '.join(cfg.targets)}\n"
             f"[bold]Actions:[/bold]  {', '.join(cfg.actions)}\n"
             f"[bold]Interval:[/bold] every [cyan]{cfg.interval}s[/cyan]\n"
-            f"[bold]Mode:[/bold]     {dry_tag}\n"
-            f"[bold]Max down:[/bold] {cfg.safety.max_down} container(s)\n\n"
+            f"[bold]Cooldown:[/bold] [cyan]{cfg.safety.cooldown}s[/cyan] between injections\n"
+            f"[bold]Max down:[/bold] {cfg.safety.max_down} container(s) simultaneously\n"
+            f"[bold]Mode:[/bold]     {dry_tag}\n\n"
             "Press [bold]Ctrl+C[/bold] to stop.",
             border_style="bright_red",
             title="[bold bright_red]🔥 Chaos Engine Starting[/bold bright_red]",
@@ -246,6 +283,9 @@ def _start_foreground(cfg, config_path: Path) -> None:
     events: list[InjectionEvent] = []
     state.ensure_dir()
 
+    # Create structured file logger (Phase 5)
+    chaos_logger = ChaosLogger(log_file=state.log_file)
+
     def on_event(event: InjectionEvent) -> None:
         events.append(event)
         engine_status = engine.status()
@@ -256,6 +296,8 @@ def _start_foreground(cfg, config_path: Path) -> None:
             down_containers=engine_status.down_containers,
             history=engine_status.history,
             dry_run=cfg.safety.dry_run,
+            cooldown_remaining=engine_status.cooldown_remaining,
+            cooldown_total=cfg.safety.cooldown,
         )
 
     # Write initial state so `status` works immediately
@@ -266,19 +308,23 @@ def _start_foreground(cfg, config_path: Path) -> None:
         down_containers=set(),
         history=[],
         dry_run=cfg.safety.dry_run,
+        cooldown_remaining=0.0,
+        cooldown_total=cfg.safety.cooldown,
     )
 
-    engine = ChaosEngine(config=cfg, on_event=on_event)
+    engine = ChaosEngine(config=cfg, on_event=on_event, logger=chaos_logger)
 
     def _shutdown(sig: int, frame: object) -> None:
         console.print("\n\n  [yellow]Stopping chaos engine…[/yellow]")
         engine.stop(timeout=10)
+        chaos_logger.close()
         st = engine.status()
         state.clear()
         console.print(
             Panel(
                 f"[bold]Cycles completed:[/bold]  {st.cycle_count}\n"
-                f"[bold]Total injections:[/bold]  {len(st.history)}",
+                f"[bold]Total injections:[/bold]  {len(st.history)}\n"
+                f"[bold]Log file:[/bold]          {state.log_file}",
                 border_style="yellow",
                 title="[bold yellow]⏹  Engine Stopped[/bold yellow]",
                 title_align="left",
@@ -383,6 +429,20 @@ def cmd_status() -> None:
     meta.add_row("Mode", "[yellow]DRY-RUN[/yellow]" if raw.get("dry_run") else "[green]LIVE[/green]")
     meta.add_row("Cycles", str(raw.get("cycle_count", 0)))
     meta.add_row("Down now", ", ".join(raw.get("down_containers") or []) or "—")
+
+    # Cooldown display (Phase 5)
+    cooldown_remaining = raw.get("cooldown_remaining", 0)
+    cooldown_total = raw.get("cooldown_total", 0)
+    if cooldown_total > 0:
+        if cooldown_remaining > 0:
+            filled = int((1 - cooldown_remaining / cooldown_total) * 20)
+            bar = "█" * filled + "░" * (20 - filled)
+            meta.add_row(
+                "Cooldown",
+                f"[yellow]{bar}[/yellow] {cooldown_remaining:.0f}s remaining",
+            )
+        else:
+            meta.add_row("Cooldown", "[green]Ready[/green]")
 
     last = raw.get("last_event")
     if last:
