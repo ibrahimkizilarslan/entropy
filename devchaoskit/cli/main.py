@@ -15,6 +15,7 @@ from rich.text import Text
 from rich import box
 
 from devchaoskit import __version__
+from devchaoskit.cli.docker_cmds import docker_app
 
 # ---------------------------------------------------------------------------
 # Application bootstrap
@@ -27,6 +28,9 @@ app = typer.Typer(
     rich_markup_mode="rich",
     no_args_is_help=True,
 )
+
+# Register sub-applications (one per phase)
+app.add_typer(docker_app, name="docker")
 
 console = Console()
 
