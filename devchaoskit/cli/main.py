@@ -16,6 +16,7 @@ from rich import box
 
 from devchaoskit import __version__
 from devchaoskit.cli.docker_cmds import docker_app
+from devchaoskit.cli.chaos_cmds import chaos_app
 
 # ---------------------------------------------------------------------------
 # Application bootstrap
@@ -31,6 +32,7 @@ app = typer.Typer(
 
 # Register sub-applications (one per phase)
 app.add_typer(docker_app, name="docker")
+app.add_typer(chaos_app, name="chaos")
 
 console = Console()
 
