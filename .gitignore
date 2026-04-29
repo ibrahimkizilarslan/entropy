@@ -30,3 +30,6 @@ env/
 chaos.yaml
 *.log
 .env
+
+# DevChaosKit runtime state (PID, event log, state JSON)
+.devchaos/

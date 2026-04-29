@@ -17,6 +17,12 @@ from rich import box
 from devchaoskit import __version__
 from devchaoskit.cli.docker_cmds import docker_app
 from devchaoskit.cli.chaos_cmds import chaos_app
+from devchaoskit.cli.commands import (
+    cmd_start,
+    cmd_stop,
+    cmd_status,
+    cmd_inject,
+)
 
 # ---------------------------------------------------------------------------
 # Application bootstrap
@@ -30,9 +36,15 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Register sub-applications (one per phase)
+# Register sub-applications (groups)
 app.add_typer(docker_app, name="docker")
 app.add_typer(chaos_app, name="chaos")
+
+# Register top-level commands
+app.command("start",  help="Start the chaos engine.")(cmd_start)
+app.command("stop",   help="Stop a running background chaos engine.")(cmd_stop)
+app.command("status", help="Show the current chaos engine status.")(cmd_status)
+app.command("inject", help="Manually inject a single chaos action.")(cmd_inject)
 
 console = Console()
 
@@ -92,7 +104,7 @@ def _version_table() -> Table:
     table.add_row("Version", f"[bold green]{__version__}[/bold green]")
     table.add_row("Python", sys.version.split()[0])
     table.add_row("Platform", platform.system())
-    table.add_row("Status", "[bold yellow]Phase 1 — Project Setup[/bold yellow]")
+    table.add_row("Status", "[bold yellow]Phase 4 — CLI Commands[/bold yellow]")
     table.add_row("Scope", "Local Docker · Developer Tooling")
 
     return table
