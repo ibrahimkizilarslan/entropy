@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🔥 DevChaosKit</h1>
+  <h1>DevChaosKit</h1>
   <p><b>Local Chaos Engineering Toolkit for Docker Microservices</b></p>
   
   [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
