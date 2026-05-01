@@ -22,6 +22,7 @@ from src.cli.commands import (
     cmd_stop,
     cmd_status,
     cmd_inject,
+    cmd_init,
 )
 from src.cli.observability_cmds import cmd_logs, cmd_report
 
@@ -42,6 +43,7 @@ app.add_typer(docker_app, name="docker")
 app.add_typer(chaos_app, name="chaos")
 
 # Register top-level commands
+app.command("init",   help="Auto-discover docker-compose services and create config.")(cmd_init)
 app.command("start",  help="Start the chaos engine.")(cmd_start)
 app.command("stop",   help="Stop a running background chaos engine.")(cmd_stop)
 app.command("status", help="Show the current chaos engine status.")(cmd_status)
