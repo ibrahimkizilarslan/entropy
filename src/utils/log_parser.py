@@ -21,7 +21,7 @@ from typing import Optional
 _LINE_RE = re.compile(
     r"^(?P<timestamp>\S+)\s+\|\s+(?P<level>\w+)\s+\|\s+(?P<message>.+)$"
 )
-_ACTION_RE = re.compile(r"(?:\[DRY-RUN\] )?(\w+)\s+\u2192\s+(\S+)")
+_ACTION_RE = re.compile(r"(?:\[DRY-RUN\] )?(.+?)\s+\u2192\s+(\S+)")
 _KV_RE = re.compile(r"(\w+)=([^\s]+)")
 
 
