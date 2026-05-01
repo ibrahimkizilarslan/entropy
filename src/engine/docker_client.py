@@ -125,10 +125,17 @@ class DockerClient:
     # ------------------------------------------------------------------
 
     def _get_container(self, name: str) -> Container:
-        """Resolve a container by name; raise ContainerNotFoundError if absent."""
+        """Resolve a container by exact name or docker-compose service name."""
         try:
             return self._client.containers.get(name)
         except docker.errors.NotFound:
+            # Fallback: try to find it by docker-compose service name
+            containers = self._client.containers.list(
+                filters={"label": f"com.docker.compose.service={name}"},
+                all=True
+            )
+            if containers:
+                return containers[0]
             raise ContainerNotFoundError(name)
         except docker.errors.APIError as exc:
             raise ContainerOperationError(name, "inspect", str(exc)) from exc
