@@ -13,7 +13,14 @@ from typing import Any
 
 import yaml
 
-from src.config.schema import ActionSpec, ChaosConfig, SafetyConfig
+from src.config.schema import (
+    ActionSpec,
+    ChaosConfig,
+    SafetyConfig,
+    ScenarioConfig,
+    ScenarioStep,
+    ProbeSpec,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -41,6 +48,70 @@ def load_config(path: str | Path = "chaos.yaml") -> ChaosConfig:
 
     raw = _read_file(config_path)
     return _build_config(raw, config_path)
+
+
+def load_scenario(path: str | Path) -> ScenarioConfig:
+    """Load and validate a scenario config file."""
+    config_path = Path(path)
+    if not config_path.exists():
+        raise ConfigError(f"Scenario file not found: '{config_path}'")
+
+    raw = _read_file(config_path)
+
+    name = raw.get("name", "Untitled Scenario")
+    description = raw.get("description", "")
+    hypothesis = raw.get("hypothesis", "")
+
+    raw_steps = raw.get("steps", [])
+    if not isinstance(raw_steps, list):
+        raise ConfigError("'steps' must be a YAML list.")
+
+    steps = []
+    for idx, raw_step in enumerate(raw_steps):
+        if not isinstance(raw_step, dict):
+            raise ConfigError(f"Step {idx} must be a dictionary.")
+
+        if "wait" in raw_step:
+            val = str(raw_step["wait"]).strip().lower()
+            if val.endswith("s"):
+                val = val[:-1]
+            try:
+                duration = int(val)
+            except ValueError:
+                raise ConfigError(f"Invalid wait duration: {raw_step['wait']}")
+            steps.append(ScenarioStep(type="wait", duration_s=duration))
+
+        elif "inject" in raw_step:
+            inj = raw_step["inject"]
+            if not isinstance(inj, dict):
+                raise ConfigError(f"'inject' must be a dict in step {idx}")
+            action = _parse_action(inj.get("action") or inj)
+            target = inj.get("target")
+            if not target:
+                raise ConfigError(f"'target' is required in inject step {idx}")
+            steps.append(ScenarioStep(type="inject", action=action, target=target))
+
+        elif "probe" in raw_step:
+            prb = raw_step["probe"]
+            if not isinstance(prb, dict):
+                raise ConfigError(f"'probe' must be a dict in step {idx}")
+            probe_spec = ProbeSpec(
+                type=prb.get("type", "http"),
+                url=prb.get("url", ""),
+                expect_status=prb.get("expect_status"),
+                expect_not_status=prb.get("expect_not_status"),
+                timeout=int(prb.get("timeout", 5)),
+            )
+            steps.append(ScenarioStep(type="probe", probe=probe_spec))
+        else:
+            raise ConfigError(f"Unknown step type in step {idx}: {list(raw_step.keys())}")
+
+    return ScenarioConfig(
+        name=name,
+        description=description,
+        hypothesis=hypothesis,
+        steps=steps,
+    )
 
 
 # ---------------------------------------------------------------------------

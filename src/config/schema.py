@@ -212,3 +212,59 @@ class ChaosConfig:
                 f"Unknown action(s): {bad!r}. Valid: {sorted(VALID_ACTIONS)}"
             )
         self.safety.validate()
+
+# ---------------------------------------------------------------------------
+# Scenario Engine schemas (Phase 8)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ProbeSpec:
+    """Represents a health check or system test."""
+
+    type: str
+    """Type of probe, e.g. 'http'"""
+
+    url: str
+    """Target URL to test"""
+
+    expect_status: Optional[int] = None
+    """HTTP status code that MUST be returned (e.g. 200)"""
+
+    expect_not_status: Optional[int] = None
+    """HTTP status code that MUST NOT be returned (e.g. 503)"""
+
+    timeout: int = 5
+    """Request timeout in seconds"""
+
+
+@dataclass
+class ScenarioStep:
+    """Represents a single step in a deterministic chaos scenario."""
+
+    type: Literal["wait", "inject", "probe"]
+    
+    # --- wait step ---
+    duration_s: Optional[int] = None
+    """Seconds to wait"""
+    
+    # --- inject step ---
+    action: Optional[ActionSpec] = None
+    """Chaos action to inject"""
+    
+    target: Optional[str] = None
+    """Target container name"""
+    
+    # --- probe step ---
+    probe: Optional[ProbeSpec] = None
+    """Probe specification"""
+
+
+@dataclass
+class ScenarioConfig:
+    """A full deterministic chaos scenario."""
+
+    name: str
+    description: str
+    hypothesis: str
+    steps: list[ScenarioStep] = field(default_factory=list)

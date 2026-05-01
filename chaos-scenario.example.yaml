@@ -1,0 +1,41 @@
+# DevChaosKit — Example Scenario Configuration
+# Run this using: devchaos scenario run scenario.yaml
+
+name: "Frontend Survives Database Outage"
+description: "When the auth database goes down, the gateway should still respond but return a 503 instead of 200."
+hypothesis: "Gateway returns 503 during outage and recovers to 200 immediately after."
+
+steps:
+  # 1. Warm-up wait
+  - wait: 2s
+
+  # 2. Inject failure
+  - inject:
+      action: stop
+      target: mongo-auth
+      
+  # 3. Wait for the failure to take effect
+  - wait: 3s
+  
+  # 4. Probe the system (Verify 503)
+  - probe:
+      type: http
+      url: "http://localhost:8080/api/auth"
+      expect_status: 503
+      timeout: 5
+
+  # 5. Recover the system
+  - inject:
+      action: restart
+      target: mongo-auth
+
+  # 6. Wait for recovery
+  - wait: 5s
+
+  # 7. Final Probe (Verify 200)
+  - probe:
+      type: http
+      url: "http://localhost:8080/api/auth"
+      expect_status: 200
+      timeout: 5
+
