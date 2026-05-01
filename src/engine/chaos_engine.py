@@ -34,8 +34,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.config.schema import ChaosConfig
-from src.engine.actions import dispatch
+from src.config.schema import ChaosConfig, ActionSpec
+from src.engine.actions import dispatch, cleanup_all
 from src.engine.docker_client import ContainerInfo, DockerClient
 from src.engine.exceptions import ChaosKitError
 
@@ -216,6 +216,11 @@ class ChaosEngine:
             cycle_count = self._cycle_count
             injection_count = len(self._history)
 
+        try:
+            cleanup_all()
+        except Exception:
+            pass
+
         if self._logger:
             self._logger.log_stop(cycle_count, injection_count)
 
@@ -252,19 +257,19 @@ class ChaosEngine:
             return
 
         target = random.choice(available)
-        action = random.choice(self._config.actions)
+        action_spec: ActionSpec = random.choice(self._config.actions)
 
         # ── Execute ──────────────────────────────────────────────────
-        event = self._execute(docker, action, target)
+        event = self._execute(docker, action_spec, target)
 
         with self._lock:
             # Track cooldown timestamp (after any injection, success or failure)
             self._last_injection_time = event.timestamp
 
             # Update down-set based on action result
-            if event.success and action == "stop":
+            if event.success and action_spec.name in ("stop", "pause"):
                 self._down_set.add(target)
-            elif action == "restart":
+            elif action_spec.name in ("restart", "unpause"):
                 self._down_set.discard(target)
 
             self._last_event = event
@@ -282,26 +287,28 @@ class ChaosEngine:
                 pass   # Never let a callback crash the engine
 
     def _execute(
-        self, docker: DockerClient, action: str, target: str
+        self, docker: DockerClient, action_spec: ActionSpec, target: str
     ) -> InjectionEvent:
         """Run a single action and return its event record."""
         now = datetime.now(tz=timezone.utc)
         dry_run = self._config.safety.dry_run
 
+        action_name = str(action_spec)
+
         if dry_run:
             return InjectionEvent(
                 timestamp=now,
-                action=action,
+                action=action_name,
                 target=target,
                 dry_run=True,
                 result_status="(dry-run)",
             )
 
         try:
-            info: ContainerInfo = dispatch(action, docker, target)
+            info: ContainerInfo = dispatch(action_spec, docker, target)
             return InjectionEvent(
                 timestamp=now,
-                action=action,
+                action=action_name,
                 target=target,
                 dry_run=False,
                 result_status=info.status,
@@ -309,7 +316,7 @@ class ChaosEngine:
         except ChaosKitError as exc:
             return InjectionEvent(
                 timestamp=now,
-                action=action,
+                action=action_name,
                 target=target,
                 dry_run=False,
                 result_status=None,

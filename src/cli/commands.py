@@ -266,7 +266,7 @@ def _start_foreground(cfg, config_path: Path) -> None:
         Panel(
             f"[bold]Config:[/bold]   {config_path}\n"
             f"[bold]Targets:[/bold]  {', '.join(cfg.targets)}\n"
-            f"[bold]Actions:[/bold]  {', '.join(cfg.actions)}\n"
+            f"[bold]Actions:[/bold]  {', '.join(str(a) for a in cfg.actions)}\n"
             f"[bold]Interval:[/bold] every [cyan]{cfg.interval}s[/cyan]\n"
             f"[bold]Cooldown:[/bold] [cyan]{cfg.safety.cooldown}s[/cyan] between injections\n"
             f"[bold]Max down:[/bold] {cfg.safety.max_down} container(s) simultaneously\n"
@@ -470,7 +470,9 @@ def cmd_status() -> None:
 
 
 def cmd_inject(
-    action: str = typer.Argument(..., help="Action to inject: stop | restart"),
+    action: str = typer.Argument(
+        ..., help="Action: stop | restart | pause | delay | loss | limit_cpu | limit_memory"
+    ),
     target: str = typer.Argument(..., help="Container or docker-compose service name."),
     config_path: Path = typer.Option(
         Path("chaos.yaml"),
@@ -484,6 +486,12 @@ def cmd_inject(
         "--skip-validation",
         help="Bypass allow-list check (use with caution).",
     ),
+    latency_ms: int = typer.Option(300, "--latency", help="Latency in ms (for delay)."),
+    jitter_ms: int = typer.Option(0, "--jitter", help="Jitter in ms (for delay)."),
+    loss_percent: int = typer.Option(20, "--loss", help="Packet loss % (for loss)."),
+    cpus: float = typer.Option(0.25, "--cpu", help="CPU quota (for limit_cpu)."),
+    memory_mb: int = typer.Option(128, "--memory", help="Memory limit MB (for limit_memory)."),
+    duration: Optional[int] = typer.Option(None, "--duration", help="Auto-restore after N seconds."),
 ) -> None:
     """
     Manually inject a single chaos action into a target container.
@@ -496,6 +504,8 @@ def cmd_inject(
     """
     # Validate action name
     from src.engine.actions import ACTION_HANDLERS
+    from src.config.schema import ActionSpec
+    
     if action not in ACTION_HANDLERS:
         _err_panel(
             f"Unknown action '{action}'.\n"
@@ -503,6 +513,16 @@ def cmd_inject(
             "Invalid Action",
         )
         raise typer.Exit(1)
+        
+    spec = ActionSpec(
+        name=action.lower(),
+        latency_ms=latency_ms,
+        jitter_ms=jitter_ms,
+        loss_percent=loss_percent,
+        cpus=cpus,
+        memory_mb=memory_mb,
+        duration=duration,
+    )
 
     # Optional config-based allow-list
     allowed: Optional[set[str]] = None
@@ -525,7 +545,7 @@ def cmd_inject(
 
     try:
         with DockerClient(allowed_targets=allowed) as dc:
-            info = dispatch(action, dc, target)
+            info = dispatch(spec, dc, target)
     except ChaosKitError as exc:
         _err_panel(str(exc), "Inject Failed")
         raise typer.Exit(1)

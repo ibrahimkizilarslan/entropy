@@ -8,13 +8,125 @@ All fields have sane defaults so minimal configs work out of the box.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal, Optional
 
 # ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
 
-ActionType = Literal["stop", "restart"]
+ActionName = Literal["stop", "restart", "pause", "delay", "loss", "limit_cpu", "limit_memory"]
+
+VALID_ACTIONS: set[str] = {
+    "stop",
+    "restart",
+    "pause",
+    "delay",
+    "loss",
+    "limit_cpu",
+    "limit_memory",
+}
+
+# Network-level actions that require tc/nsenter on Linux
+NETWORK_ACTIONS: set[str] = {"delay", "loss"}
+
+# Resource-level actions that use docker update
+RESOURCE_ACTIONS: set[str] = {"limit_cpu", "limit_memory"}
+
+
+# ---------------------------------------------------------------------------
+# ActionSpec — represents one entry in the actions list
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ActionSpec:
+    """
+    Represents a single chaos action with its parameters.
+
+    Simple actions (stop, restart, pause) need only ``name``.
+    Network actions (delay, loss) accept additional optional params.
+    Resource actions (limit_cpu, limit_memory) accept resource params.
+
+    YAML examples::
+
+        # Simple string (backward-compatible)
+        actions:
+          - stop
+          - restart
+          - pause
+
+        # Parameterised dict
+        actions:
+          - name: delay
+            latency_ms: 300
+            jitter_ms: 50
+            duration: 30        # seconds; auto-restore after N seconds
+
+          - name: loss
+            percent: 20
+            duration: 20
+
+          - name: limit_cpu
+            cpus: 0.25          # max 0.25 CPU cores
+            duration: 30
+
+          - name: limit_memory
+            memory_mb: 128      # cap container at 128 MB
+            duration: 30
+    """
+
+    name: str
+    """Action identifier."""
+
+    # --- Network chaos params ---
+    latency_ms: int = 300
+    """Latency to add in milliseconds (delay action)."""
+
+    jitter_ms: int = 0
+    """Random jitter in milliseconds (delay action)."""
+
+    loss_percent: int = 20
+    """Percentage of packets to drop (loss action)."""
+
+    # --- Resource chaos params ---
+    cpus: float = 0.25
+    """CPU quota (limit_cpu action). E.g. 0.25 = 25% of one core."""
+
+    memory_mb: int = 128
+    """Memory cap in MB (limit_memory action)."""
+
+    # --- Shared params ---
+    duration: Optional[int] = None
+    """
+    Auto-restore duration in seconds.
+    After this many seconds the chaos is reverted automatically.
+    None = permanent (until engine stops or clear is called).
+    """
+
+    @property
+    def is_network(self) -> bool:
+        return self.name in NETWORK_ACTIONS
+
+    @property
+    def is_resource(self) -> bool:
+        return self.name in RESOURCE_ACTIONS
+
+    def __str__(self) -> str:
+        extras = []
+        if self.name == "delay":
+            extras.append(f"{self.latency_ms}ms")
+            if self.jitter_ms:
+                extras.append(f"±{self.jitter_ms}ms")
+        elif self.name == "loss":
+            extras.append(f"{self.loss_percent}%")
+        elif self.name == "limit_cpu":
+            extras.append(f"{self.cpus} CPUs")
+        elif self.name == "limit_memory":
+            extras.append(f"{self.memory_mb}MB")
+        if self.duration:
+            extras.append(f"for {self.duration}s")
+        suffix = f"({', '.join(extras)})" if extras else ""
+        return f"{self.name} {suffix}".strip()
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +175,11 @@ class ChaosConfig:
         actions:
           - stop
           - restart
+          - pause
+          - name: delay
+            latency_ms: 300
+            jitter_ms: 50
+            duration: 30
         safety:
           max_down: 1
           cooldown: 30
@@ -75,7 +192,7 @@ class ChaosConfig:
     targets: list[str]
     """Docker container names (or docker-compose service names) to target."""
 
-    actions: list[ActionType] = field(default_factory=lambda: ["stop"])
+    actions: list[ActionSpec] = field(default_factory=lambda: [ActionSpec(name="stop")])
     """Actions the engine may perform. Chosen randomly each cycle."""
 
     safety: SafetyConfig = field(default_factory=SafetyConfig)
@@ -87,12 +204,11 @@ class ChaosConfig:
             raise ValueError("interval must be >= 1 second")
         if not self.targets:
             raise ValueError("targets must contain at least one container name")
-        valid_actions: set[str] = {"stop", "restart"}
-        bad = [a for a in self.actions if a not in valid_actions]
-        if bad:
-            raise ValueError(
-                f"Unknown action(s): {bad!r}. Valid: {sorted(valid_actions)}"
-            )
         if not self.actions:
             raise ValueError("actions must contain at least one action")
+        bad = [a.name for a in self.actions if a.name not in VALID_ACTIONS]
+        if bad:
+            raise ValueError(
+                f"Unknown action(s): {bad!r}. Valid: {sorted(VALID_ACTIONS)}"
+            )
         self.safety.validate()

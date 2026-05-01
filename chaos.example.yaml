@@ -9,13 +9,33 @@ targets:
   - service-a
   - service-b
 
-# Actions to apply (supported: stop, restart)
+# Actions to apply (supported: stop, restart, pause, delay, loss, limit_cpu, limit_memory)
 actions:
   - stop
   - restart
-
+  # - pause
+  
+  # Example: Network Delay (Linux only, requires sudo + iproute2)
+  # - name: delay
+  #   latency_ms: 300
+  #   jitter_ms: 50
+  #   duration: 30
+  
+  # Example: Packet Loss
+  # - name: loss
+  #   percent: 20
+  #   duration: 30
+  
+  # Example: Resource Constraints
+  # - name: limit_cpu
+  #   cpus: 0.5          # Restrict to half a CPU core
+  #   duration: 60
+  # - name: limit_memory
+  #   memory_mb: 256     # Restrict to 256MB RAM
+  #   duration: 60
 # Safety settings (Phase 5)
 safety:
   max_down: 1          # Maximum containers stopped simultaneously
   cooldown: 30         # Seconds to wait between injections
   dry_run: false       # If true, log actions without executing them
+

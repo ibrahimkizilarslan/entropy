@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from src.config.schema import ChaosConfig, SafetyConfig
+from src.config.schema import ActionSpec, ChaosConfig, SafetyConfig
 
 
 # ---------------------------------------------------------------------------
@@ -30,22 +30,6 @@ def load_config(path: str | Path = "chaos.yaml") -> ChaosConfig:
     Load and validate a chaos config file.
 
     Supports YAML (.yaml / .yml) and JSON (.json) formats.
-
-    Parameters
-    ----------
-    path:
-        Path to the config file. Defaults to ``chaos.yaml`` in the current
-        working directory.
-
-    Returns
-    -------
-    ChaosConfig
-        A fully validated configuration object.
-
-    Raises
-    ------
-    ConfigError
-        If the file does not exist, cannot be parsed, or fails validation.
     """
     config_path = Path(path)
 
@@ -91,6 +75,38 @@ def _read_file(path: Path) -> dict[str, Any]:
     return data
 
 
+def _parse_action(raw: Any) -> ActionSpec:
+    """
+    Parse one entry from the actions list into an ActionSpec.
+
+    Accepts two formats:
+      - A plain string:  "stop"  →  ActionSpec(name="stop")
+      - A dict:          {"name": "delay", "latency_ms": 300, ...}
+    """
+    if isinstance(raw, str):
+        return ActionSpec(name=raw.strip().lower())
+
+    if isinstance(raw, dict):
+        name = str(raw.get("name", "")).strip().lower()
+        if not name:
+            raise ConfigError(
+                f"Action dict must have a 'name' field. Got: {raw!r}"
+            )
+        return ActionSpec(
+            name=name,
+            latency_ms=int(raw.get("latency_ms", 300)),
+            jitter_ms=int(raw.get("jitter_ms", 0)),
+            loss_percent=int(raw.get("percent", raw.get("loss_percent", 20))),
+            cpus=float(raw.get("cpus", 0.25)),
+            memory_mb=int(raw.get("memory_mb", 128)),
+            duration=int(raw["duration"]) if "duration" in raw else None,
+        )
+
+    raise ConfigError(
+        f"Each action must be a string or a dict, got {type(raw).__name__}: {raw!r}"
+    )
+
+
 def _build_config(raw: dict[str, Any], path: Path) -> ChaosConfig:
     """Map a raw dict to ChaosConfig and run validation."""
     # --- Required fields ---
@@ -110,9 +126,16 @@ def _build_config(raw: dict[str, Any], path: Path) -> ChaosConfig:
     if not isinstance(targets, list):
         raise ConfigError("'targets' must be a YAML list of container names.")
 
-    actions: list[str] = raw.get("actions") or ["stop"]
-    if not isinstance(actions, list):
-        raise ConfigError("'actions' must be a YAML list (e.g. [stop, restart]).")
+    raw_actions = raw.get("actions") or ["stop"]
+    if not isinstance(raw_actions, list):
+        raise ConfigError("'actions' must be a YAML list.")
+
+    try:
+        actions = [_parse_action(a) for a in raw_actions]
+    except ConfigError:
+        raise
+    except Exception as exc:
+        raise ConfigError(f"Failed to parse actions in '{path}': {exc}") from exc
 
     # --- Safety sub-config ---
     safety_raw: dict = raw.get("safety") or {}
@@ -127,7 +150,7 @@ def _build_config(raw: dict[str, Any], path: Path) -> ChaosConfig:
         config = ChaosConfig(
             interval=interval,
             targets=[str(t) for t in targets],
-            actions=actions,  # type: ignore[arg-type]
+            actions=actions,
             safety=safety,
         )
         config.validate()

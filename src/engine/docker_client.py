@@ -236,6 +236,67 @@ class DockerClient:
 
         return ContainerInfo.from_sdk(container)
 
+    def pause_container(self, name: str) -> ContainerInfo:
+        """
+        Pause all processes within a container.
+        """
+        self._assert_allowed(name)
+        container = self._get_container(name)
+        try:
+            container.pause()
+            container.reload()
+        except docker.errors.APIError as exc:
+            raise ContainerOperationError(name, "pause", str(exc)) from exc
+        return ContainerInfo.from_sdk(container)
+
+    def unpause_container(self, name: str) -> ContainerInfo:
+        """
+        Unpause all processes within a container.
+        """
+        self._assert_allowed(name)
+        container = self._get_container(name)
+        try:
+            container.unpause()
+            container.reload()
+        except docker.errors.APIError as exc:
+            raise ContainerOperationError(name, "unpause", str(exc)) from exc
+        return ContainerInfo.from_sdk(container)
+
+    def get_container_pid(self, name: str) -> int:
+        """
+        Get the init PID of a running container. Used for network namespace injection.
+        """
+        self._assert_allowed(name)
+        container = self._get_container(name)
+        if container.status != "running":
+            raise ContainerOperationError(
+                name, "pid", f"Container is {container.status}, not running."
+            )
+        try:
+            pid = container.attrs["State"]["Pid"]
+            if not pid:
+                raise ValueError("PID is 0 or missing")
+            return int(pid)
+        except (KeyError, ValueError) as exc:
+            raise ContainerOperationError(name, "pid", f"Failed to get PID: {exc}") from exc
+
+    def update_container_resources(
+        self, name: str, cpu_quota: int = 0, cpu_period: int = 0, mem_limit: int = 0
+    ) -> ContainerInfo:
+        """
+        Dynamically update container resource limits.
+        """
+        self._assert_allowed(name)
+        container = self._get_container(name)
+        try:
+            container.update(
+                cpu_quota=cpu_quota, cpu_period=cpu_period, mem_limit=mem_limit
+            )
+            container.reload()
+        except docker.errors.APIError as exc:
+            raise ContainerOperationError(name, "update", str(exc)) from exc
+        return ContainerInfo.from_sdk(container)
+
     def close(self) -> None:
         """Release the underlying Docker SDK connection."""
         self._client.close()
