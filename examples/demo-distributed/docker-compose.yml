@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # --- GATEWAY ---
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - catalog-service
+
+  # --- CATALOG (.NET) ---
+  catalog-service:
+    build: ./catalog-service
+    depends_on:
+      - catalog-db
+
+  catalog-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: catalog
+
+  # --- CART (Python) ---
+  cart-service:
+    build: ./cart-service
+    ports:
+      - "8081:80" # Exposed directly for independent testing if needed
+    depends_on:
+      - cart-db
+
+  cart-db:
+    image: redis:alpine
+
+  # --- AUTH (Node) ---
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "8082:80" # Exposed directly for independent testing if needed
+    depends_on:
+      - auth-db
+
+  auth-db:
+    image: mongo:latest
