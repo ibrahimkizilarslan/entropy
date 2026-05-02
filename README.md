@@ -59,6 +59,14 @@ Execute deterministic, hypothesis-driven tests:
 entropy scenario run chaos-scenario.example.yaml
 ```
 
+## Documentation
+
+For a deep dive into configuring and running Entropy, check out the documentation:
+
+- [Scenario DSL Reference](docs/scenarios.md) - Learn how to write deterministic chaos scenarios.
+- [Random Chaos Engine](docs/random-chaos.md) - Details on background daemon configuration and safety mechanisms.
+- [CLI Reference](docs/cli-reference.md) - Full list of available CLI commands.
+
 ## Development
 
 Entropy is written in Python to maximize integration with existing developer testing workflows. The CLI is built with `Typer` and `Rich` for a premium terminal experience.
