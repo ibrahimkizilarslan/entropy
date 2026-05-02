@@ -25,8 +25,14 @@ Future iterations will introduce `KubernetesClient` and Cloud Provider adapters,
 git clone https://github.com/ibrahimkizilarslan/Entropy.git
 cd Entropy
 
-# Install as a global CLI tool
-pip install -e .
+# Install dependencies
+go mod download
+
+# Build the binary
+go build -o entropy ./cmd/entropy
+
+# (Optional) Move to your path
+sudo mv entropy /usr/local/bin/
 ```
 
 ## Quick Start
@@ -69,7 +75,12 @@ For a deep dive into configuring and running Entropy, check out the documentatio
 
 ## Development
 
-Entropy is written in Python to maximize integration with existing developer testing workflows. The CLI is built with `Typer` and `Rich` for a premium terminal experience.
+Entropy is written in Go for maximum performance and easy distribution as a single binary. The CLI is built with `Cobra` and `Pterm` for a premium terminal experience.
+
+### Build from source
+```bash
+go build -o entropy ./cmd/entropy
+```
 
 ## License
 MIT License
