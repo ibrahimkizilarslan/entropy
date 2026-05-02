@@ -1,5 +1,5 @@
 """
-DevChaosKit — Configuration loader.
+Entropy — Configuration loader.
 
 Reads a chaos.yaml (or chaos.json) file, maps it to a ChaosConfig dataclass,
 runs validation, and raises friendly errors for common mistakes.

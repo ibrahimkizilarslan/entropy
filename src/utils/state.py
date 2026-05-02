@@ -1,7 +1,7 @@
 """
-DevChaosKit — Engine state persistence.
+Entropy — Engine state persistence.
 
-Manages a .devchaos/state.json file that acts as the IPC bridge between
+Manages a .entropy/state.json file that acts as the IPC bridge between
 a running daemon (start --detach) and the stop / status commands.
 
 The state file is written atomically (write-to-temp → rename) so readers
@@ -24,7 +24,7 @@ from src.engine.chaos_engine import InjectionEvent
 # Paths
 # ---------------------------------------------------------------------------
 
-STATE_DIR_NAME = ".devchaos"
+STATE_DIR_NAME = ".entropy"
 STATE_FILE_NAME = "state.json"
 LOG_FILE_NAME = "engine.log"
 
@@ -36,12 +36,12 @@ LOG_FILE_NAME = "engine.log"
 
 class StateManager:
     """
-    Reads and writes engine state to a local .devchaos/state.json file.
+    Reads and writes engine state to a local .entropy/state.json file.
 
     Parameters
     ----------
     cwd:
-        Root directory for the .devchaos/ folder. Defaults to the process
+        Root directory for the .entropy/ folder. Defaults to the process
         working directory so each project keeps its own state.
     """
 

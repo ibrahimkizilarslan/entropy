@@ -1,5 +1,5 @@
 """
-DevChaosKit — Network chaos injection via Linux tc/netem.
+Entropy — Network chaos injection via Linux tc/netem.
 
 Injects network faults (latency, packet loss) into a running container's
 network namespace using the host-level ``tc`` (traffic control) tool and

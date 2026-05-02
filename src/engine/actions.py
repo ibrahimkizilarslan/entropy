@@ -1,5 +1,5 @@
 """
-DevChaosKit — Chaos action definitions and dispatcher.
+Entropy — Chaos action definitions and dispatcher.
 
 Defines the set of actions the chaos engine can perform and provides a
 single dispatch function that maps action names to DockerClient calls.
@@ -98,7 +98,7 @@ def _action_pause(
     client: DockerClient, target: str, spec: ActionSpec
 ) -> ContainerInfo:
     # We could implement duration-based auto-unpause, but for now we just pause.
-    # The user can use "devchaos docker unpause" or restart it.
+    # The user can use "entropy docker unpause" or restart it.
     return client.pause_container(target)
 
 

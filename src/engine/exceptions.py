@@ -1,22 +1,22 @@
 """
-DevChaosKit — Custom exception hierarchy.
+Entropy — Custom exception hierarchy.
 
-All exceptions raised by the engine layer inherit from ChaosKitError so
+All exceptions raised by the engine layer inherit from EntropyError so
 callers can catch them at any granularity they need.
 """
 
 from __future__ import annotations
 
 
-class ChaosKitError(Exception):
-    """Base exception for all DevChaosKit errors."""
+class EntropyError(Exception):
+    """Base exception for all Entropy errors."""
 
 
-class DockerConnectionError(ChaosKitError):
+class DockerConnectionError(EntropyError):
     """Raised when the Docker daemon is unreachable."""
 
 
-class ContainerNotFoundError(ChaosKitError):
+class ContainerNotFoundError(EntropyError):
     """Raised when the requested container name does not exist."""
 
     def __init__(self, name: str) -> None:
@@ -24,7 +24,7 @@ class ContainerNotFoundError(ChaosKitError):
         super().__init__(f"Container not found: '{name}'")
 
 
-class ContainerOperationError(ChaosKitError):
+class ContainerOperationError(EntropyError):
     """Raised when a container lifecycle operation fails."""
 
     def __init__(self, name: str, operation: str, reason: str) -> None:

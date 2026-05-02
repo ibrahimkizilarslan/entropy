@@ -1,4 +1,4 @@
-# DevChaosKit — Example chaos configuration
+# Entropy — Example chaos configuration
 # Copy this file to chaos.yaml and edit to match your docker-compose services.
 
 # How often (seconds) to select and inject a chaos action

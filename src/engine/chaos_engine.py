@@ -1,5 +1,5 @@
 """
-DevChaosKit — Chaos Engine Core.
+Entropy — Chaos Engine Core.
 
 The ChaosEngine drives interval-based random fault injection into Docker
 containers. It runs in a dedicated background thread so the CLI remains
@@ -37,7 +37,7 @@ from typing import Optional
 from src.config.schema import ChaosConfig, ActionSpec
 from src.engine.actions import dispatch, cleanup_all
 from src.engine.docker_client import ContainerInfo, DockerClient
-from src.engine.exceptions import ChaosKitError
+from src.engine.exceptions import EntropyError
 
 
 # ---------------------------------------------------------------------------
@@ -313,7 +313,7 @@ class ChaosEngine:
                 dry_run=False,
                 result_status=info.status,
             )
-        except ChaosKitError as exc:
+        except EntropyError as exc:
             return InjectionEvent(
                 timestamp=now,
                 action=action_name,

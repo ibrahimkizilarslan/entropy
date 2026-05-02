@@ -1,13 +1,13 @@
 """
-DevChaosKit — Background worker entry point.
+Entropy — Background worker entry point.
 
-This module is launched by `devchaos start --detach` via:
+This module is launched by `entropy start --detach` via:
 
     python -m src._worker --config <path> [--dry-run] [--max-down N] [--cooldown N]
 
 It runs the ChaosEngine in the foreground of the detached subprocess,
-writing state to .devchaos/state.json and structured logs to
-.devchaos/engine.log after every injection cycle.
+writing state to .entropy/state.json and structured logs to
+.entropy/engine.log after every injection cycle.
 
 This is an internal module — not part of the public CLI surface.
 """
@@ -30,7 +30,7 @@ from src.utils.state import StateManager
 def main() -> None:
     parser = argparse.ArgumentParser(prog="src._worker", add_help=False)
     parser.add_argument("--config", default="chaos.yaml")
-    # Safety overrides passed from `devchaos start --detach`
+    # Safety overrides passed from `entropy start --detach`
     parser.add_argument("--dry-run", dest="dry_run", action="store_true", default=None)
     parser.add_argument("--no-dry-run", dest="dry_run", action="store_false")
     parser.add_argument("--max-down", dest="max_down", type=int, default=None)

@@ -1,5 +1,5 @@
 """
-DevChaosKit — Configuration schema.
+Entropy — Configuration schema.
 
 Defines the ChaosConfig dataclass that represents a validated chaos.yaml file.
 All fields have sane defaults so minimal configs work out of the box.

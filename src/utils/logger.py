@@ -1,7 +1,7 @@
 """
-DevChaosKit — Structured logger for chaos engine events.
+Entropy — Structured logger for chaos engine events.
 
-Writes timestamped, structured log lines to .devchaos/engine.log with
+Writes timestamped, structured log lines to .entropy/engine.log with
 automatic rotation (1 MB cap, 3 backups kept).
 
 Log format
@@ -19,7 +19,7 @@ Usage
 -----
 ::
 
-    logger = ChaosLogger(log_file=Path(".devchaos/engine.log"))
+    logger = ChaosLogger(log_file=Path(".entropy/engine.log"))
     logger.log_start(config)
     logger.log_injection(event)
     logger.close()
@@ -80,7 +80,7 @@ class ChaosLogger:
     ----------
     log_file:
         Destination log file path. Parent directories are created
-        automatically. Defaults to ``.devchaos/engine.log``.
+        automatically. Defaults to ``.entropy/engine.log``.
     """
 
     def __init__(self, log_file: Path) -> None:

@@ -3,13 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "devchaos-tool"
+name = "entropy-tool"
 version = "0.1.0"
 description = "A local chaos engineering toolkit for Docker-based microservices"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "DevChaosKit" }]
+authors = [{ name = "Entropy" }]
 keywords = ["chaos-engineering", "docker", "microservices", "developer-tools", "cli"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-devchaos = "src.cli.main:app"
+entropy = "src.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]

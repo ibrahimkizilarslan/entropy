@@ -1,5 +1,5 @@
 """
-DevChaosKit — Docker abstraction layer.
+Entropy — Docker abstraction layer.
 
 Provides a safe, narrow interface over the docker-py SDK for container
 lifecycle management. All methods target containers by *name* and refuse to
@@ -12,7 +12,7 @@ Design constraints
 - Every public method validates the target name before touching Docker
 - docker-compose named containers are supported transparently because
   docker-py works with container names regardless of how they were created
-- Raises custom ChaosKitError subclasses so the CLI layer can present
+- Raises custom EntropyError subclasses so the CLI layer can present
   friendly messages without leaking SDK internals
 """
 

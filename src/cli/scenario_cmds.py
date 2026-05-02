@@ -1,7 +1,7 @@
 """
-DevChaosKit CLI — Scenario Engine commands.
+Entropy CLI — Scenario Engine commands.
 
-devchaos scenario run <file>
+entropy scenario run <file>
 """
 
 from __future__ import annotations

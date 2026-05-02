@@ -1,18 +1,18 @@
 """
-DevChaosKit CLI — Top-level commands (Phase 4).
+Entropy CLI — Top-level commands (Phase 4).
 
 Implements the primary developer-facing interface:
 
-  devchaos start [--config chaos.yaml] [--detach]
-  devchaos stop
-  devchaos status
-  devchaos inject <action> <target> [--config chaos.yaml]
+  entropy start [--config chaos.yaml] [--detach]
+  entropy stop
+  entropy status
+  entropy inject <action> <target> [--config chaos.yaml]
 
 Architecture
 ------------
 `start` without --detach runs the engine foreground (press Ctrl+C to quit).
 `start --detach` spawns the engine as a background daemon via subprocess,
-writing its PID + state to .devchaos/state.json.
+writing its PID + state to .entropy/state.json.
 
 `stop` and `status` communicate with the running engine through that state
 file — no sockets, no HTTP, just an atomic JSON file.
@@ -40,7 +40,7 @@ from src.config.loader import ConfigError, load_config
 from src.engine.actions import dispatch
 from src.engine.chaos_engine import ChaosEngine, InjectionEvent
 from src.engine.docker_client import DockerClient, DockerConnectionError
-from src.engine.exceptions import ChaosKitError
+from src.engine.exceptions import EntropyError
 from src.utils.logger import ChaosLogger
 from src.utils.state import StateManager
 
@@ -148,7 +148,7 @@ def _history_table(history: list) -> Table:
 
 
 # ---------------------------------------------------------------------------
-# ─── devchaos start ─────────────────────────────────────────────────────────
+# ─── entropy start ─────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 
@@ -204,7 +204,7 @@ def cmd_start(
     if pid is not None:
         _err_panel(
             f"Chaos engine is already running (PID {pid}).\n"
-            "Run [bold]devchaos stop[/bold] first.",
+            "Run [bold]entropy stop[/bold] first.",
             "Already Running",
         )
         raise typer.Exit(1)
@@ -249,8 +249,8 @@ def _start_detached(config_path: Path, cfg) -> None:
             f"[bold]Mode:[/bold]    {'[yellow]DRY-RUN[/yellow]' if cfg.safety.dry_run else '[green]LIVE[/green]'}\n"
             f"[bold]Cooldown:[/bold] {cfg.safety.cooldown}s  [bold]Max-down:[/bold] {cfg.safety.max_down}\n"
             f"[bold]Logs:[/bold]    {log_path}\n\n"
-            "Run [bold cyan]devchaos status[/bold cyan] to monitor.\n"
-            "Run [bold cyan]devchaos stop[/bold cyan]   to terminate.",
+            "Run [bold cyan]entropy status[/bold cyan] to monitor.\n"
+            "Run [bold cyan]entropy stop[/bold cyan]   to terminate.",
             border_style="bright_red",
             title="[bold bright_red]🔥 Chaos Engine Started (background)[/bold bright_red]",
             title_align="left",
@@ -347,7 +347,7 @@ def _start_foreground(cfg, config_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ─── devchaos stop ──────────────────────────────────────────────────────────
+# ─── entropy stop ──────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 
@@ -366,7 +366,7 @@ def cmd_stop() -> None:
         else:
             _err_panel(
                 "No chaos engine is running.\n"
-                "Start one with [bold cyan]devchaos start[/bold cyan].",
+                "Start one with [bold cyan]entropy start[/bold cyan].",
                 "Not Running",
             )
         raise typer.Exit(1)
@@ -395,7 +395,7 @@ def cmd_stop() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ─── devchaos status ────────────────────────────────────────────────────────
+# ─── entropy status ────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 
@@ -407,7 +407,7 @@ def cmd_status() -> None:
         console.print(
             Panel(
                 "[dim]No chaos engine is currently running.[/dim]\n"
-                "Start one with [bold cyan]devchaos start[/bold cyan].",
+                "Start one with [bold cyan]entropy start[/bold cyan].",
                 border_style="bright_black",
                 title="[bold]Status[/bold]",
                 title_align="left",
@@ -465,7 +465,7 @@ def cmd_status() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ─── devchaos inject ────────────────────────────────────────────────────────
+# ─── entropy inject ────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 
@@ -499,8 +499,8 @@ def cmd_inject(
     Examples
     --------
     \\b
-      devchaos inject stop service-a
-      devchaos inject restart service-b --config ./my-chaos.yaml
+      entropy inject stop service-a
+      entropy inject restart service-b --config ./my-chaos.yaml
     """
     # Validate action name
     from src.engine.actions import ACTION_HANDLERS
@@ -546,7 +546,7 @@ def cmd_inject(
     try:
         with DockerClient(allowed_targets=allowed) as dc:
             info = dispatch(spec, dc, target)
-    except ChaosKitError as exc:
+    except EntropyError as exc:
         _err_panel(str(exc), "Inject Failed")
         raise typer.Exit(1)
 
@@ -564,7 +564,7 @@ def cmd_inject(
     console.print()
 
 # ---------------------------------------------------------------------------
-# ─── devchaos init ─────────────────────────────────────────────────────────
+# ─── entropy init ─────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 def cmd_init(
@@ -629,7 +629,7 @@ def cmd_init(
     
     try:
         with open(out_file, "w") as f:
-            f.write("# Auto-generated by DevChaosKit (devchaos init)\n")
+            f.write("# Auto-generated by Entropy (entropy init)\n")
             yaml.dump(chaos_config, f, default_flow_style=False, sort_keys=False)
     except Exception as e:
         _err_panel(f"Failed to write {out_file}: {e}", "Write Error")
@@ -637,7 +637,7 @@ def cmd_init(
         
     _ok_panel(
         f"Generated [cyan]chaos.yaml[/cyan] with all discovered services.\n"
-        "You can now run [bold cyan]devchaos start[/bold cyan] to begin testing.",
+        "You can now run [bold cyan]entropy start[/bold cyan] to begin testing.",
         "Init Complete"
     )
     console.print()

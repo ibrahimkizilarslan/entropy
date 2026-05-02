@@ -1,8 +1,8 @@
 """
-DevChaosKit CLI — Observability commands (Phase 6).
+Entropy CLI — Observability commands (Phase 6).
 
-  devchaos logs    [--lines N] [--follow] [--level ACTION|SKIP|ERROR|INFO]
-  devchaos report  [--all]
+  entropy logs    [--lines N] [--follow] [--level ACTION|SKIP|ERROR|INFO]
+  entropy report  [--all]
 """
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def _fmt_duration(s: SessionSummary) -> str:
 
 
 # ---------------------------------------------------------------------------
-# ─── devchaos logs ──────────────────────────────────────────────────────────
+# ─── entropy logs ──────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 
@@ -83,7 +83,7 @@ def cmd_logs(
         console.print(
             Panel(
                 "[dim]No log file found.[/dim]\n"
-                "Start the engine first with [bold cyan]devchaos start[/bold cyan].",
+                "Start the engine first with [bold cyan]entropy start[/bold cyan].",
                 border_style="bright_black",
                 title="[bold]Logs[/bold]",
                 title_align="left",
@@ -141,7 +141,7 @@ def cmd_logs(
 
 
 # ---------------------------------------------------------------------------
-# ─── devchaos report ────────────────────────────────────────────────────────
+# ─── entropy report ────────────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
 
@@ -155,7 +155,7 @@ def cmd_report(
         console.print(
             Panel(
                 "[dim]No log file found.[/dim]\n"
-                "Start the engine first with [bold cyan]devchaos start[/bold cyan].",
+                "Start the engine first with [bold cyan]entropy start[/bold cyan].",
                 border_style="bright_black",
                 title="[bold]Report[/bold]",
                 title_align="left",

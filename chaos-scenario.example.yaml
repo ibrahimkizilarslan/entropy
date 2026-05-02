@@ -1,41 +1,42 @@
-# DevChaosKit — Example Scenario Configuration
-# Run this using: devchaos scenario run scenario.yaml
+# chaos-scenario.example.yaml dosyanızı şu şekilde güncelleyebilirsiniz:
 
-name: "Frontend Survives Database Outage"
-description: "When the auth database goes down, the gateway should still respond but return a 503 instead of 200."
-hypothesis: "Gateway returns 503 during outage and recovers to 200 immediately after."
+name: "Auth API Survives MongoDB Outage"
+description: "mongo-auth çöktüğünde auth servisi tamamen çökmemeli, kullanıcılara düzgün bir hata (500 veya 503) dönmelidir."
+hypothesis: "MongoDB yokken API 500 döner, geldiğinde 200 döner."
 
 steps:
-  # 1. Warm-up wait
-  - wait: 2s
+  # 1. Her şey normalken Auth API'sine istek at (200 OK dönmeli)
+  - probe:
+      type: http
+      url: "http://localhost:3000/api/auth"   # <--- BURAYI BACKEND PORTUNUZA GÖRE DEĞİŞTİRİN
+      expect_status: 200
 
-  # 2. Inject failure
+  # 2. mongo-auth veritabanını acımasızca durdur!
   - inject:
       action: stop
       target: mongo-auth
       
-  # 3. Wait for the failure to take effect
+  # 3. Veritabanının kapanmasını 3 saniye bekle
   - wait: 3s
   
-  # 4. Probe the system (Verify 503)
+  # 4. Auth API'sine tekrar istek at. 
+  # Veritabanı gittiği için artık 200 DÖNMEMELİ! (Örn: 500 dönebilir)
   - probe:
       type: http
-      url: "http://localhost:8080/api/auth"
-      expect_status: 503
+      url: "http://localhost:3000/api/auth"
+      expect_not_status: 200
       timeout: 5
 
-  # 5. Recover the system
+  # 5. Sistemi geri kurtar (Veritabanını başlat)
   - inject:
       action: restart
       target: mongo-auth
 
-  # 6. Wait for recovery
+  # 6. MongoDB'nin kendine gelmesini 5 saniye bekle
   - wait: 5s
 
-  # 7. Final Probe (Verify 200)
+  # 7. Son kontrol: Auth API'si tekrar 200 OK durumuna dönebildi mi?
   - probe:
       type: http
-      url: "http://localhost:8080/api/auth"
+      url: "http://localhost:3000/api/auth"
       expect_status: 200
-      timeout: 5
-

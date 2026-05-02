@@ -1,14 +1,14 @@
 """
-DevChaosKit CLI — `devchaos chaos` subcommand group (Phase 3 preview).
+Entropy CLI — `entropy chaos` subcommand group (Phase 3 preview).
 
 Provides a minimal `chaos run` command that drives the ChaosEngine with a
-config file.  The full devchaos start / stop / status / inject interface
+config file.  The full entropy start / stop / status / inject interface
 is implemented in Phase 4.
 
 Commands
 --------
-  devchaos chaos run --config chaos.yaml
-  devchaos chaos run --config chaos.yaml --dry-run
+  entropy chaos run --config chaos.yaml
+  entropy chaos run --config chaos.yaml --dry-run
 """
 
 from __future__ import annotations

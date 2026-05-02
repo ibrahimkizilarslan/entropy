@@ -1,5 +1,5 @@
 """
-DevChaosKit — Structured log parser for .devchaos/engine.log.
+Entropy — Structured log parser for .entropy/engine.log.
 
 Log format (produced by ChaosLogger):
     2024-01-01T12:00:00+00:00 | INFO   | ENGINE STARTED | targets=svc-a interval=10s ...

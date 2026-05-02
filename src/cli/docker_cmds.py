@@ -1,5 +1,5 @@
 """
-DevChaosKit CLI — `devchaos docker` subcommand group.
+Entropy CLI — `entropy docker` subcommand group.
 
 Exposes the Docker abstraction layer interactively so developers can
 inspect and manually drive container lifecycle operations before the
@@ -7,10 +7,10 @@ chaos engine takes over in Phase 3.
 
 Commands
 --------
-  devchaos docker list              List running containers
-  devchaos docker list --all        Include stopped containers
-  devchaos docker stop <name>       Gracefully stop a container
-  devchaos docker restart <name>    Restart a container
+  entropy docker list              List running containers
+  entropy docker list --all        Include stopped containers
+  entropy docker stop <name>       Gracefully stop a container
+  entropy docker restart <name>    Restart a container
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from rich import box
 
 from src.engine.docker_client import DockerClient
 from src.engine.exceptions import (
-    ChaosKitError,
+    EntropyError,
     DockerConnectionError,
     ContainerNotFoundError,
 )
@@ -61,13 +61,13 @@ def _status_badge(status: str) -> Text:
     return Text(f"● {status}", style=style)
 
 
-def _handle_error(exc: ChaosKitError) -> None:
+def _handle_error(exc: EntropyError) -> None:
     """Print a user-friendly error panel and exit with code 1."""
     console.print(
         Panel(
             f"[bold red]Error:[/bold red] {exc}",
             border_style="red",
-            title="[bold red]DevChaosKit[/bold red]",
+            title="[bold red]Entropy[/bold red]",
             title_align="left",
         )
     )
@@ -153,7 +153,7 @@ def stop_container(
     try:
         with _get_client() as dc:
             info = dc.stop_container(name, timeout=timeout)
-    except (ContainerNotFoundError, ChaosKitError) as exc:
+    except (ContainerNotFoundError, EntropyError) as exc:
         _handle_error(exc)
         return
 
@@ -185,7 +185,7 @@ def restart_container(
     try:
         with _get_client() as dc:
             info = dc.restart_container(name, timeout=timeout)
-    except (ContainerNotFoundError, ChaosKitError) as exc:
+    except (ContainerNotFoundError, EntropyError) as exc:
         _handle_error(exc)
         return
 

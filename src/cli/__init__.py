@@ -1,1 +1,1 @@
-"""CLI package — Typer-based command interface for DevChaosKit."""
+"""CLI package — Typer-based command interface for Entropy."""

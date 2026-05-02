@@ -28,8 +28,10 @@ env/
 
 # Project
 chaos.yaml
+*.scenario.yaml
+scenarios/
 *.log
 .env
 
-# DevChaosKit runtime state (PID, event log, state JSON)
-.devchaos/
+# Entropy runtime state (PID, event log, state JSON)
+.entropy/
