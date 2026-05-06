@@ -15,6 +15,16 @@ type FallbackResponse struct {
 	Status  string `json:"status"`
 }
 
+func sendFallback(w http.ResponseWriter) {
+	fallback := FallbackResponse{
+		Message: "Catalog Service is currently degraded. Showing cached highlights.",
+		Source:  "api-gateway-cache",
+		Status:  "degraded",
+	}
+	w.WriteHeader(http.StatusOK) // We still return 200 OK because we handled it gracefully!
+	json.NewEncoder(w).Encode(fallback)
+}
+
 func main() {
 	// Configure an HTTP client with a strict 500ms timeout
 	// This is our Circuit Breaker / Timeout pattern
@@ -28,20 +38,18 @@ func main() {
 		// Attempt to fetch from the actual Catalog Service (.NET)
 		resp, err := client.Get("http://catalog-service:80/catalog")
 		
-		if err != nil || resp.StatusCode != 200 {
-			log.Printf("Catalog Service unavailable or slow, triggering fallback. Error: %v\n", err)
-			
-			// Graceful Degradation: Return a fallback response instead of a 500 error or hanging
-			fallback := FallbackResponse{
-				Message: "Catalog Service is currently degraded. Showing cached highlights.",
-				Source:  "api-gateway-cache",
-				Status:  "degraded",
-			}
-			w.WriteHeader(http.StatusOK) // We still return 200 OK because we handled it gracefully!
-			json.NewEncoder(w).Encode(fallback)
+		if err != nil {
+			log.Printf("Catalog Service unavailable (Error: %v), triggering fallback.\n", err)
+			sendFallback(w)
 			return
 		}
 		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			log.Printf("Catalog Service returned status %d, triggering fallback.\n", resp.StatusCode)
+			sendFallback(w)
+			return
+		}
 
 		// Success: Proxy the response
 		body, _ := ioutil.ReadAll(resp.Body)

@@ -5,7 +5,8 @@ var app = builder.Build();
 
 app.MapGet("/catalog", async () =>
 {
-    var connectionString = "Host=catalog-db;Username=postgres;Password=password;Database=catalog";
+    var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") 
+        ?? "Host=catalog-db;Username=postgres;Password=password;Database=catalog";
     
     try
     {

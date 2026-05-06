@@ -15,7 +15,7 @@ def get_cart():
         # If cart-db is stopped via Chaos, this will raise a ConnectionError
         redis_client.ping()
         return {"status": "ok", "source": "redis", "items": ["Product A", "Product B"]}
-    except redis.exceptions.ConnectionError:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
         # Graceful handling: Tell the user the service is degraded instead of a raw 500
         # Gateway could interpret this 503 and show a friendly UI
         raise HTTPException(status_code=503, detail="Cart database is temporarily unavailable due to Chaos!")
