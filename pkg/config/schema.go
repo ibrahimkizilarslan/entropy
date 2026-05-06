@@ -104,10 +104,13 @@ func (c *ChaosConfig) Validate() error {
 
 type ProbeSpec struct {
 	Type            string `yaml:"type"`
-	URL             string `yaml:"url"`
-	ExpectStatus    *int   `yaml:"expect_status,omitempty"`
-	ExpectNotStatus *int   `yaml:"expect_not_status,omitempty"`
-	Timeout         int    `yaml:"timeout,omitempty"`
+	URL             string `yaml:"url,omitempty"`               // For HTTP
+	ExpectStatus    *int   `yaml:"expect_status,omitempty"`     // For HTTP
+	ExpectNotStatus *int   `yaml:"expect_not_status,omitempty"` // For HTTP
+	Timeout         int    `yaml:"timeout,omitempty"`           // Global
+	HostPort        string `yaml:"host_port,omitempty"`         // For TCP
+	Target          string `yaml:"target,omitempty"`            // For Exec
+	Command         string `yaml:"command,omitempty"`           // For Exec
 }
 
 type ScenarioStep struct {
@@ -147,7 +150,7 @@ func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
 		return nil
 	}
 	var p probeStep
-	if err := value.Decode(&p); err == nil && p.Probe.URL != "" {
+	if err := value.Decode(&p); err == nil && (p.Probe.URL != "" || p.Probe.HostPort != "" || p.Probe.Command != "") {
 		s.Type = "probe"
 		s.Probe = &p.Probe
 		if s.Probe.Type == "" {

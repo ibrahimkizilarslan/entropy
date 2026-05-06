@@ -2,7 +2,9 @@ package engine
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
@@ -13,11 +15,20 @@ type ProbeResult struct {
 	Message string
 }
 
-func RunProbe(spec *config.ProbeSpec) ProbeResult {
-	if spec.Type != "http" {
+func RunProbe(spec *config.ProbeSpec, dc *DockerClient) ProbeResult {
+	switch spec.Type {
+	case "http":
+		return runHTTPProbe(spec)
+	case "tcp":
+		return runTCPProbe(spec)
+	case "exec":
+		return runExecProbe(spec, dc)
+	default:
 		return ProbeResult{Success: false, Message: fmt.Sprintf("unsupported probe type: %s", spec.Type)}
 	}
+}
 
+func runHTTPProbe(spec *config.ProbeSpec) ProbeResult {
 	client := &http.Client{
 		Timeout: time.Duration(spec.Timeout) * time.Second,
 	}
@@ -54,4 +65,35 @@ func RunProbe(spec *config.ProbeSpec) ProbeResult {
 	}
 
 	return ProbeResult{Success: true, Message: fmt.Sprintf("HTTP GET succeeded with status %d", status)}
+}
+
+func runTCPProbe(spec *config.ProbeSpec) ProbeResult {
+	timeout := time.Duration(spec.Timeout) * time.Second
+	conn, err := net.DialTimeout("tcp", spec.HostPort, timeout)
+	if err != nil {
+		return ProbeResult{Success: false, Message: fmt.Sprintf("TCP connect failed to %s: %v", spec.HostPort, err)}
+	}
+	conn.Close()
+	return ProbeResult{Success: true, Message: fmt.Sprintf("TCP connected successfully to %s", spec.HostPort)}
+}
+
+func runExecProbe(spec *config.ProbeSpec, dc *DockerClient) ProbeResult {
+	if dc == nil {
+		return ProbeResult{Success: false, Message: "Docker client not initialized"}
+	}
+
+	cmdParts := strings.Fields(spec.Command)
+	if len(cmdParts) == 0 {
+		return ProbeResult{Success: false, Message: "empty exec command"}
+	}
+
+	exitCode, err := dc.ExecCommand(spec.Target, cmdParts)
+	if err != nil {
+		return ProbeResult{Success: false, Message: fmt.Sprintf("Exec failed: %v", err)}
+	}
+
+	if exitCode == 0 {
+		return ProbeResult{Success: true, Message: fmt.Sprintf("Exec command '%s' succeeded", spec.Command)}
+	}
+	return ProbeResult{Success: false, Message: fmt.Sprintf("Exec command '%s' failed with exit code %d", spec.Command, exitCode)}
 }

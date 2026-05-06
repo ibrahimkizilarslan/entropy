@@ -2,6 +2,8 @@ package cli
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
 	"github.com/ibrahimkizilarslan/entropy-cli/pkg/engine"
@@ -30,7 +32,17 @@ var scenarioRunCmd = &cobra.Command{
 		runner := engine.NewScenarioRunner(cfg, func(msg string) {
 			pterm.Printf("  %s\n", msg)
 		})
-		
+
+		// Setup signal trap for graceful rollback
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-sigChan
+			pterm.Warning.Println("\n[!] Received interrupt signal. Aborting scenario...")
+			runner.RevertAll()
+			os.Exit(130)
+		}()
+
 		result := runner.Run()
 		
 		pterm.Println()

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -311,6 +312,46 @@ func (d *DockerClient) UpdateContainerResources(name string, cpuQuota int64, cpu
 	}
 	
 	return d.getContainerInfo(id)
+}
+
+func (d *DockerClient) ExecCommand(name string, cmd []string) (int, error) {
+	if err := d.assertAllowed(name); err != nil {
+		return -1, err
+	}
+	id, err := d.getContainerID(name)
+	if err != nil {
+		return -1, err
+	}
+
+	execConfig := types.ExecConfig{
+		Cmd:          cmd,
+		AttachStdout: false,
+		AttachStderr: false,
+	}
+
+	resp, err := d.cli.ContainerExecCreate(context.Background(), id, execConfig)
+	if err != nil {
+		return -1, fmt.Errorf("failed to create exec in container %s: %w", name, err)
+	}
+
+	err = d.cli.ContainerExecStart(context.Background(), resp.ID, types.ExecStartCheck{})
+	if err != nil {
+		return -1, fmt.Errorf("failed to start exec in container %s: %w", name, err)
+	}
+
+	// Poll until the exec command finishes
+	for i := 0; i < 50; i++ { // max 5 seconds wait (50 * 100ms)
+		inspectResp, err := d.cli.ContainerExecInspect(context.Background(), resp.ID)
+		if err != nil {
+			return -1, fmt.Errorf("failed to inspect exec in container %s: %w", name, err)
+		}
+		if !inspectResp.Running {
+			return inspectResp.ExitCode, nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return -1, fmt.Errorf("timeout waiting for exec command to complete in container %s", name)
 }
 
 func (d *DockerClient) Close() {
