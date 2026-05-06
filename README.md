@@ -1,29 +1,33 @@
-# Entropy
+# 🌪️ Entropy CLI
 
-Entropy is a developer-first chaos engineering platform designed to inject controlled faults into local microservice environments. 
+[![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy-cli)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-By prioritizing the developer workflow, Entropy enables teams to validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code reaches production.
+Entropy is a **developer-first chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
-## Core Capabilities
+Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code ever reaches production.
 
-- **Zero-Config Discovery:** Automatically parses `docker-compose.yml` to identify and target running services.
-- **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs to verify system recovery.
-- **Resource Constraints:** Dynamically enforce CPU and Memory limits on active containers using Docker SDK integration.
-- **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem` within container namespaces.
-- **Stateful Safety Mechanisms:** Enforces global cooldowns and maximum simultaneous failure limits to prevent unrecoverable system states.
+## ✨ Core Capabilities
 
-## Architecture & Vision
+- 🤖 **Smart Context Discovery:** Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
+- 🧪 **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
+- 🎯 **Multi-Protocol Probes (NEW!):** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker Exec probes** to run raw shell commands (like `redis-cli ping`) inside containers.
+- 🛡️ **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes CPU limits) leaving your system pristine.
+- 📉 **Resource Constraints:** Dynamically enforce CPU quotas and Memory limits on active containers.
+- 🖧 **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
-Entropy is engineered with a modular, runtime-agnostic abstraction layer. While the current implementation specifically targets local Docker environments (to solve the critical gap in developer-side testing), the core engine is designed to be extensible. 
+## 🏗️ Architecture & Vision
 
-Future iterations will introduce `KubernetesClient` and Cloud Provider adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters and cloud infrastructure.
+Entropy acts as the chaos injection layer for modern dev environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation) locally, developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
 
-## Installation
+Future iterations will introduce `KubernetesClient` adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters.
+
+## 🚀 Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/ibrahimkizilarslan/Entropy.git
-cd Entropy
+git clone https://github.com/ibrahimkizilarslan/entropy-cli.git
+cd entropy-cli
 
 # Install dependencies
 go mod download
@@ -35,7 +39,7 @@ go build -o entropy ./cmd/entropy
 sudo mv entropy /usr/local/bin/
 ```
 
-## Quick Start
+## 🛠️ Quick Start
 
 ### 1. Auto-Discovery
 Navigate to any directory containing a `docker-compose.yml` file and initialize the workspace:
@@ -45,43 +49,34 @@ entropy init
 ```
 This generates a `chaos.yaml` configuration populated with your discovered services.
 
-### 2. Random Fault Injection (Chaos Monkey Mode)
-Start the background engine to randomly inject faults based on your safety constraints:
-
-```bash
-entropy start
-```
-
-Monitor the active session:
-```bash
-entropy status
-entropy logs
-```
-
-### 3. Scenario-Based Testing
+### 2. Scenario-Based Testing
 Execute deterministic, hypothesis-driven tests:
 
 ```bash
-entropy scenario run chaos-scenario.example.yaml
+entropy scenario run examples/demo-distributed/scenarios/test-advanced.yaml
 ```
 
-## Documentation
+### 3. Random Fault Injection (Chaos Monkey Mode)
+Start the background daemon to randomly inject faults based on strict safety constraints (cooldowns, max simultaneous failures):
+
+```bash
+entropy start --detach
+entropy status
+entropy stop
+```
+
+## 📚 Documentation
 
 For a deep dive into configuring and running Entropy, check out the documentation:
 
 - [Scenario DSL Reference](docs/scenarios.md) - Learn how to write deterministic chaos scenarios.
-- [Random Chaos Engine](docs/random-chaos.md) - Details on background daemon configuration and safety mechanisms.
+- [Random Chaos Engine](docs/random-chaos.md) - Details on background daemon configuration.
 - [CLI Reference](docs/cli-reference.md) - Full list of available CLI commands.
 
-## Development
+## 🤝 Contributing
 
-Entropy is written in Go for maximum performance and easy distribution as a single binary. The CLI is built with `Cobra` and `Pterm` for a premium terminal experience.
+We welcome contributions! Whether it's adding new chaos actions, fixing bugs, or improving documentation, please see our [Contributing Guide](CONTRIBUTING.md) to get started.
 
-### Build from source
-```bash
-go build -o entropy ./cmd/entropy
-```
+## 📄 License
 
-## License
-MIT License
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
