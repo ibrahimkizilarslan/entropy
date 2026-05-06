@@ -24,46 +24,75 @@ Future iterations will introduce `KubernetesClient` adapters, allowing the exact
 
 ## 🚀 Installation
 
+You can install Entropy using Go or by building from source.
+
+### Method 1: Global Install (Recommended)
+This installs the binary to your `$GOPATH/bin` folder, allowing you to run it from anywhere.
+
 ```bash
-# Clone the repository
+go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
+```
+> [!TIP]
+> Ensure your Go bin directory is in your system's `PATH`.
+> - **Unix (Linux/macOS):** `export PATH=$PATH:$(go env GOPATH)/bin`
+> - **Windows:** Add `%GOPATH%\bin` to your Environment Variables.
+
+### Method 2: Build from Source
+If you want to contribute or build locally:
+
+```bash
 git clone https://github.com/ibrahimkizilarslan/entropy-cli.git
 cd entropy-cli
-
-# Install dependencies
 go mod download
-
-# Build the binary
 go build -o entropy ./cmd/entropy
-
-# (Optional) Move to your path
-sudo mv entropy /usr/local/bin/
 ```
 
+---
+
 ## 🛠️ Quick Start
+
+> [!IMPORTANT]
+> If you built from source and the binary is in your current directory, you must use `./entropy` (Linux/macOS) or `.\entropy` (Windows) to run it.
 
 ### 1. Auto-Discovery
 Navigate to any directory containing a `docker-compose.yml` file and initialize the workspace:
 
+**Unix (Linux/macOS):**
 ```bash
-entropy init
+./entropy init
 ```
+
+**Windows (PowerShell):**
+```bash
+.\entropy init
+```
+
 This generates a `chaos.yaml` configuration populated with your discovered services.
 
 ### 2. Scenario-Based Testing
 Execute deterministic, hypothesis-driven tests:
 
 ```bash
-entropy scenario run examples/demo-distributed/scenarios/test-advanced.yaml
+./entropy scenario run examples/demo-distributed/scenarios/test-advanced.yaml
 ```
 
-### 3. Random Fault Injection (Chaos Monkey Mode)
-Start the background daemon to randomly inject faults based on strict safety constraints (cooldowns, max simultaneous failures):
+### 3. Random Fault Injection
+Start the background daemon to randomly inject faults:
 
 ```bash
-entropy start --detach
-entropy status
-entropy stop
+./entropy start --detach
+./entropy status
+./entropy stop
 ```
+
+---
+
+## ❓ Troubleshooting: "Command Not Found"
+
+If you see `entropy: command not found`, it is likely for one of two reasons:
+
+1. **Current Directory:** You built the binary locally but are not using `./` or `.\` to run it. Use `./entropy` instead of just `entropy`.
+2. **PATH Issue:** You used `go install` but your Go bin directory is not in your system's PATH. See the [Installation](#-installation) section for details.
 
 ## 📚 Documentation
 
