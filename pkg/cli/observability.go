@@ -42,3 +42,4 @@ var logsCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(logsCmd)
 }
+

@@ -2,7 +2,11 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -23,15 +27,14 @@ type DockerClient struct {
 	allowedTargets map[string]bool
 }
 
-func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient, error) {
+	cli, err := client.NewClientWithOpts(opt, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to Docker daemon: %w", err)
+		return nil, err
 	}
-
 	_, err = cli.Ping(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("cannot ping Docker daemon: %w", err)
+		return nil, err
 	}
 
 	var allowed map[string]bool
@@ -46,6 +49,68 @@ func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
 		cli:            cli,
 		allowedTargets: allowed,
 	}, nil
+}
+
+func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
+	// 1. Explicit DOCKER_HOST bypasses everything
+	if os.Getenv("DOCKER_HOST") != "" {
+		return tryConnectWithOpts(allowedTargets, client.FromEnv)
+	}
+
+	homeDir, _ := os.UserHomeDir()
+	currentContext := ""
+
+	// 2. Try to read active context from ~/.docker/config.json
+	if homeDir != "" {
+		data, err := os.ReadFile(filepath.Join(homeDir, ".docker", "config.json"))
+		if err == nil {
+			var cfg struct {
+				CurrentContext string `json:"currentContext"`
+			}
+			if json.Unmarshal(data, &cfg) == nil {
+				currentContext = cfg.CurrentContext
+			}
+		}
+	}
+
+	var endpoints []string
+
+	// 3. Build prioritized endpoint list
+	if currentContext == "desktop-linux" && runtime.GOOS == "linux" && homeDir != "" {
+		endpoints = append(endpoints, "unix://"+filepath.Join(homeDir, ".docker", "desktop", "docker.sock"))
+	}
+
+	if runtime.GOOS == "linux" {
+		endpoints = append(endpoints, "unix:///var/run/docker.sock")
+		if homeDir != "" {
+			endpoints = append(endpoints, "unix://"+filepath.Join(homeDir, ".docker", "desktop", "docker.sock"))
+		}
+	} else if runtime.GOOS == "darwin" {
+		if homeDir != "" {
+			endpoints = append(endpoints, "unix://"+filepath.Join(homeDir, ".docker", "run", "docker.sock"))
+		}
+		endpoints = append(endpoints, "unix:///var/run/docker.sock")
+	} else if runtime.GOOS == "windows" {
+		endpoints = append(endpoints, "npipe:////./pipe/docker_engine")
+	}
+
+	// 4. Try endpoints sequentially
+	var lastErr error
+	for _, ep := range endpoints {
+		dc, err := tryConnectWithOpts(allowedTargets, client.WithHost(ep))
+		if err == nil {
+			return dc, nil
+		}
+		lastErr = err
+	}
+
+	// 5. Final fallback to FromEnv (default docker behavior)
+	dc, err := tryConnectWithOpts(allowedTargets, client.FromEnv)
+	if err == nil {
+		return dc, nil
+	}
+
+	return nil, fmt.Errorf("cannot connect to Docker daemon. Checked multiple endpoints. Last error: %w", lastErr)
 }
 
 func (d *DockerClient) assertAllowed(name string) error {

@@ -1,24 +1,22 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-*.egg
-*.egg-info/
+# Binaries and binaries
+bin/
+entropy
+entropy-cli
 dist/
-build/
-.eggs/
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.coverage
-htmlcov/
 
-# Virtual environments
-.venv/
-venv/
-env/
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+
+# Dependency directories (only if you use vendoring)
+# vendor/
 
 # IDE
 .vscode/

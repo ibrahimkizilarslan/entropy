@@ -28,3 +28,4 @@ app.get('/auth/verify', async (req, res) => {
 app.listen(port, () => {
   console.log(`Auth service listening on port ${port}`);
 });
+
