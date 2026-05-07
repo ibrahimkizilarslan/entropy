@@ -98,8 +98,10 @@ var stopCmd = &cobra.Command{
 
 		pterm.Info.Printf("Sending SIGTERM to PID %d...\n", *pid)
 		proc, err := os.FindProcess(*pid)
-		if err == nil {
-			proc.Signal(syscall.SIGTERM)
+		if err != nil {
+			pterm.Warning.Printf("Could not find process %d: %v\n", *pid, err)
+		} else if err := proc.Signal(syscall.SIGTERM); err != nil {
+			pterm.Warning.Printf("Could not send signal to PID %d: %v\n", *pid, err)
 		}
 
 		state.Clear()
