@@ -11,12 +11,12 @@ import (
 // ComposeService represents a subset of docker-compose service configuration
 // used by the doctor for analyzing resilience.
 type ComposeService struct {
-	Image       string                 `yaml:"image"`
-	Deploy      *DeployConfig          `yaml:"deploy"`
-	Restart     string                 `yaml:"restart"`
-	HealthCheck *HealthCheckConfig     `yaml:"healthcheck"`
-	Privileged  bool                   `yaml:"privileged"`
-	Networks    interface{}            `yaml:"networks"` // Can be list or map
+	Image       string             `yaml:"image"`
+	Deploy      *DeployConfig      `yaml:"deploy"`
+	Restart     string             `yaml:"restart"`
+	HealthCheck *HealthCheckConfig `yaml:"healthcheck"`
+	Privileged  bool               `yaml:"privileged"`
+	Networks    interface{}        `yaml:"networks"` // Can be list or map
 }
 
 type DeployConfig struct {
@@ -34,8 +34,8 @@ type ResourceLimits struct {
 }
 
 type HealthCheckConfig struct {
-	Test        interface{} `yaml:"test"` // can be string or list
-	Disable     bool        `yaml:"disable"`
+	Test    interface{} `yaml:"test"` // can be string or list
+	Disable bool        `yaml:"disable"`
 }
 
 type ComposeFile struct {
@@ -98,7 +98,7 @@ func AnalyzeTopology(dir string) ([]DoctorResult, error) {
 		// 2. Resource Exhaustion
 		hasCPU := svc.Deploy != nil && svc.Deploy.Resources != nil && svc.Deploy.Resources.Limits != nil && svc.Deploy.Resources.Limits.CPUs != ""
 		hasMemory := svc.Deploy != nil && svc.Deploy.Resources != nil && svc.Deploy.Resources.Limits != nil && svc.Deploy.Resources.Limits.Memory != ""
-		
+
 		if !hasCPU || !hasMemory {
 			result.Issues = append(result.Issues, DoctorIssue{
 				Severity: "WARNING",
