@@ -116,7 +116,7 @@ func (e *ChaosEngine) runLoop() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	ticksSinceLastCycle := e.config.Interval
+	ticksSinceLastCycle := 0
 
 	for {
 		select {
