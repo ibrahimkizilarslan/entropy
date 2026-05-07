@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -211,8 +211,8 @@ func (e *ChaosEngine) runCycle(dc *DockerClient) {
 		return
 	}
 
-	target := available[rand.Intn(len(available))]
-	actionSpec := e.config.Actions[rand.Intn(len(e.config.Actions))]
+	target := available[rand.IntN(len(available))]
+	actionSpec := e.config.Actions[rand.IntN(len(e.config.Actions))]
 	actionName := e.formatActionName(actionSpec)
 
 	event := e.execute(dc, actionSpec, target, actionName)
