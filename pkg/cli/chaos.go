@@ -65,9 +65,11 @@ var startCmd = &cobra.Command{
 			daemonCmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 			if err := daemonCmd.Start(); err != nil {
+				logFile.Close()
 				pterm.Error.Println(err)
 				os.Exit(1)
 			}
+			logFile.Close()
 			pterm.Success.Printf("Chaos Engine Started (background) PID: %d\n", daemonCmd.Process.Pid)
 		} else {
 			dryRunOpt := cfg.Safety.DryRun
