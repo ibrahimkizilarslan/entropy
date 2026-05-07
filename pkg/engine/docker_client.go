@@ -53,6 +53,11 @@ func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient,
 }
 
 func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
+	// 0. Safety: prevent accidental use in production environments
+	if os.Getenv("ENTROPY_ENVIRONMENT") == "production" && os.Getenv("ENTROPY_ALLOW_PRODUCTION") != "true" {
+		return nil, fmt.Errorf("refusing to run in production environment. Set ENTROPY_ALLOW_PRODUCTION=true to override")
+	}
+
 	// 1. Explicit DOCKER_HOST bypasses everything
 	if os.Getenv("DOCKER_HOST") != "" {
 		return tryConnectWithOpts(allowedTargets, client.FromEnv)

@@ -3,10 +3,21 @@ package engine
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"sync"
 	"time"
 )
+
+// safeNamePattern allows only safe characters in container names to prevent command injection
+var safeNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`)
+
+func validateContainerName(name string) error {
+	if !safeNamePattern.MatchString(name) {
+		return fmt.Errorf("invalid container name '%s': only alphanumeric, hyphens, underscores, and dots are allowed", name)
+	}
+	return nil
+}
 
 type NetworkChaosManager struct {
 	mu     sync.Mutex
@@ -73,6 +84,9 @@ func (m *NetworkChaosManager) InjectDelay(name string, pid int, latencyMs int, j
 	if err := m.checkPlatform(); err != nil {
 		return err
 	}
+	if err := validateContainerName(name); err != nil {
+		return err
+	}
 	args := []string{"netem", "delay", fmt.Sprintf("%dms", latencyMs)}
 	if jitterMs > 0 {
 		args = append(args, fmt.Sprintf("%dms", jitterMs), "distribution", "normal")
@@ -82,6 +96,9 @@ func (m *NetworkChaosManager) InjectDelay(name string, pid int, latencyMs int, j
 
 func (m *NetworkChaosManager) InjectLoss(name string, pid int, percent int, duration *int) error {
 	if err := m.checkPlatform(); err != nil {
+		return err
+	}
+	if err := validateContainerName(name); err != nil {
 		return err
 	}
 	args := []string{"netem", "loss", fmt.Sprintf("%d%%", percent)}

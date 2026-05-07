@@ -75,7 +75,7 @@ func (s *StateManager) Write(data *EngineState) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(tmp, b, 0644); err != nil {
+	if err := os.WriteFile(tmp, b, 0600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, s.stateFile)
