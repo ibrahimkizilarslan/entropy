@@ -37,7 +37,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 	myPid := os.Getpid()
 
 	var chaosEngine *engine.ChaosEngine
-	
+
 	onEvent := func(e utils.EventRecord) {
 		status := chaosEngine.Status()
 		state.Write(&utils.EngineState{
