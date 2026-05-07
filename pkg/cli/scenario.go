@@ -4,11 +4,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
 	"github.com/ibrahimkizilarslan/entropy-cli/pkg/engine"
+	"github.com/ibrahimkizilarslan/entropy-cli/pkg/reporter"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+)
+
+var (
+	reportFormat string
+	reportOutput string
 )
 
 var scenarioCmd = &cobra.Command{
@@ -58,6 +65,30 @@ var scenarioRunCmd = &cobra.Command{
 		if result.Error != "" {
 			pterm.Error.Printf("Error: %s\n", result.Error)
 		}
+
+		if reportOutput != "" {
+			reportData := reporter.ReportData{
+				ScenarioName:  cfg.Name,
+				Hypothesis:    cfg.Hypothesis,
+				Result:        result,
+				Timestamp:     time.Now().Format(time.RFC1123),
+				EntropyVersion: "v0.5.0", // Hardcoded for now
+			}
+
+			var err error
+			if reportFormat == "html" {
+				err = reporter.GenerateHTMLReport(reportData, reportOutput)
+			} else if reportFormat == "json" {
+				err = reporter.GenerateJSONReport(reportData, reportOutput)
+			}
+
+			if err != nil {
+				pterm.Error.Printf("Failed to generate report: %v\n", err)
+			} else {
+				pterm.Success.Printf("Report generated: %s\n", reportOutput)
+			}
+		}
+
 		pterm.Println()
 		
 		if !result.Success {
@@ -69,4 +100,7 @@ var scenarioRunCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(scenarioCmd)
 	scenarioCmd.AddCommand(scenarioRunCmd)
+
+	scenarioRunCmd.Flags().StringVar(&reportFormat, "report", "html", "Report format (html, json)")
+	scenarioRunCmd.Flags().StringVar(&reportOutput, "output", "", "Output path for the report")
 }

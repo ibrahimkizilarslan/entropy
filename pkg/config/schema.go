@@ -113,6 +113,13 @@ type ProbeSpec struct {
 	Command         string `yaml:"command,omitempty"`           // For Exec
 }
 
+type SteadyStateProbe struct {
+	Metric    string `yaml:"metric"`
+	Source    string `yaml:"source"` // e.g., "prometheus"
+	Query     string `yaml:"query"`
+	Threshold string `yaml:"threshold"` // e.g., "< 250"
+}
+
 type ScenarioStep struct {
 	Type      string      `yaml:"-"`
 	DurationS int         `yaml:"-"`
@@ -165,8 +172,9 @@ func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
 }
 
 type ScenarioConfig struct {
-	Name        string         `yaml:"name"`
-	Description string         `yaml:"description"`
-	Hypothesis  string         `yaml:"hypothesis"`
-	Steps       []ScenarioStep `yaml:"steps"`
+	Name        string             `yaml:"name"`
+	Description string             `yaml:"description"`
+	Hypothesis  string             `yaml:"hypothesis"`
+	SteadyState []SteadyStateProbe `yaml:"steady_state,omitempty"`
+	Steps       []ScenarioStep     `yaml:"steps"`
 }

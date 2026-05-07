@@ -8,12 +8,15 @@ import (
 )
 
 type ScenarioResult struct {
-	Success       bool
-	ProbesPassed  int
-	ProbesTotal   int
-	ExecutedSteps int
-	TotalSteps    int
-	Error         string
+	Success            bool
+	ProbesPassed       int
+	ProbesTotal        int
+	SteadyStatePassed  int
+	SteadyStateTotal   int
+	ExecutedSteps      int
+	TotalSteps         int
+	Error              string
+	SteadyStateError   string
 }
 
 type ScenarioRunner struct {
@@ -53,6 +56,19 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 	}
 	r.dc = dc
 	defer dc.Close()
+
+	// 2A: Pre-scenario steady-state check
+	if len(r.config.SteadyState) > 0 {
+		r.logCb("\nVerifying Pre-scenario Steady-State...")
+		res.SteadyStateTotal = len(r.config.SteadyState)
+		if err := EvaluateSteadyState(r.config.SteadyState); err != nil {
+			res.Success = false
+			res.SteadyStateError = err.Error()
+			r.logCb(fmt.Sprintf("❌ Pre-scenario Steady-State check failed: %v", err))
+			return res
+		}
+		r.logCb("✅ Pre-scenario Steady-State verified.")
+	}
 
 	for i, step := range r.config.Steps {
 		res.ExecutedSteps++
@@ -109,6 +125,19 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 				return res
 			}
 		}
+	}
+
+	// 2A: Post-scenario steady-state check
+	if len(r.config.SteadyState) > 0 {
+		r.logCb("\nVerifying Post-scenario Steady-State...")
+		if err := EvaluateSteadyState(r.config.SteadyState); err != nil {
+			res.Success = false
+			res.SteadyStateError = err.Error()
+			r.logCb(fmt.Sprintf("❌ Post-scenario Steady-State check failed: %v", err))
+			return res
+		}
+		res.SteadyStatePassed = len(r.config.SteadyState)
+		r.logCb("✅ Post-scenario Steady-State verified. System recovered.")
 	}
 
 	return res
