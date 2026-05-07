@@ -26,11 +26,17 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.57
+          args: --timeout=5m
+
       - name: Run go vet
         run: go vet ./...
 
       - name: Build
         run: go build -v -o entropy ./cmd/entropy
 
-      - name: Run tests
-        run: go test -v ./...
+      - name: Run tests with coverage and race detector
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
