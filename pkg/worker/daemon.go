@@ -35,6 +35,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 	defer logger.Close()
 
 	myPid := os.Getpid()
+	startedAt := time.Now().UTC()
 
 	var chaosEngine *engine.ChaosEngine
 
@@ -42,7 +43,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 		status := chaosEngine.Status()
 		state.Write(&utils.EngineState{
 			PID:               myPid,
-			StartedAt:         time.Now().UTC(),
+			StartedAt:         startedAt,
 			ConfigPath:        configPath,
 			DryRun:            cfg.Safety.DryRun,
 			CycleCount:        status.CycleCount,
@@ -58,7 +59,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 
 	state.Write(&utils.EngineState{
 		PID:               myPid,
-		StartedAt:         time.Now().UTC(),
+		StartedAt:         startedAt,
 		ConfigPath:        configPath,
 		DryRun:            cfg.Safety.DryRun,
 		CycleCount:        0,
