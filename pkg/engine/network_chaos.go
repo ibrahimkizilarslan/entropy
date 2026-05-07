@@ -10,13 +10,13 @@ import (
 
 type NetworkChaosManager struct {
 	mu     sync.Mutex
-	active map[string]bool
+	active map[string]int          // container name → PID
 	timers map[string]*time.Timer
 }
 
 func NewNetworkChaosManager() *NetworkChaosManager {
 	return &NetworkChaosManager{
-		active: make(map[string]bool),
+		active: make(map[string]int),
 		timers: make(map[string]*time.Timer),
 	}
 }
@@ -49,7 +49,7 @@ func (m *NetworkChaosManager) applyRule(name string, pid int, args []string, dur
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.active[name] {
+	if _, exists := m.active[name]; exists {
 		m.cancelTimer(name)
 		m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
 	}
@@ -59,7 +59,7 @@ func (m *NetworkChaosManager) applyRule(name string, pid int, args []string, dur
 		return fmt.Errorf("tc failed for container '%s': %w", name, err)
 	}
 
-	m.active[name] = true
+	m.active[name] = pid
 
 	if duration != nil && *duration > 0 {
 		m.timers[name] = time.AfterFunc(time.Duration(*duration)*time.Second, func() {
@@ -93,10 +93,12 @@ func (m *NetworkChaosManager) Clear(name string, pid *int) {
 	defer m.mu.Unlock()
 
 	m.cancelTimer(name)
-	if m.active[name] {
+	if storedPID, exists := m.active[name]; exists {
+		cleanupPID := storedPID
 		if pid != nil {
-			m.runTc(*pid, []string{"qdisc", "del", "dev", "eth0", "root"})
+			cleanupPID = *pid
 		}
+		m.runTc(cleanupPID, []string{"qdisc", "del", "dev", "eth0", "root"})
 		delete(m.active, name)
 	}
 }
@@ -107,7 +109,8 @@ func (m *NetworkChaosManager) ClearAll() {
 	for name := range m.timers {
 		m.cancelTimer(name)
 	}
-	for name := range m.active {
+	for name, pid := range m.active {
+		m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
 		delete(m.active, name)
 	}
 }
