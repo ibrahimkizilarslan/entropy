@@ -61,6 +61,12 @@ go mod download
 go build -o entropy ./cmd/entropy
 ```
 
+### Method 3: Install from Releases
+Download a prebuilt binary from the [Releases](https://github.com/ibrahimkizilarslan/entropy/releases) page for your platform, then:
+
+- Place it in a directory in your `PATH`
+- Ensure it is executable (`chmod +x entropy` on Unix-like systems)
+
 ---
 
 ## Quick Start
@@ -120,6 +126,19 @@ Available Commands:
   topology    Visualize the cluster topology and blast radius
 ```
 
+### 5. End-to-End Smoke Test
+Run the full command-level sanity check:
+
+```bash
+./scripts/e2e-smoke.sh
+```
+
+Run it with automatic demo environment lifecycle:
+
+```bash
+./scripts/e2e-smoke.sh --with-demo-compose
+```
+
 ---
 
 ## Troubleshooting: "Command Not Found"
@@ -136,10 +155,15 @@ For a deep dive into configuring and running Entropy, check out the documentatio
 - [Scenario DSL Reference](docs/scenarios.md) - Learn how to write deterministic chaos scenarios.
 - [Random Chaos Engine](docs/random-chaos.md) - Details on background daemon configuration.
 - [CLI Reference](docs/cli-reference.md) - Full list of available CLI commands.
+- [Release Checklist](docs/release-checklist.md) - Launch and release readiness checklist.
 
 ## Contributing
 
 We welcome contributions! Whether it's adding new chaos actions, fixing bugs, or improving documentation, please see our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+Please also review:
+- [Security Policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
 
 If Entropy helps your team test resilience earlier, consider starring the project and checking the [Star History](https://star-history.com/#ibrahimkizilarslan/entropy&Date).
 
