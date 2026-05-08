@@ -5,6 +5,52 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT_DIR/entropy"
 DEMO_DIR="$ROOT_DIR/examples/demo-distributed"
 SMOKE_SCENARIO="/tmp/entropy-smoke-scenario.yaml"
+WITH_DEMO_COMPOSE=false
+
+if [[ "${1:-}" == "--with-demo-compose" ]]; then
+  WITH_DEMO_COMPOSE=true
+fi
+
+compose_cmd() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+    return
+  fi
+  if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose "$@"
+    return
+  fi
+  echo "ERROR: neither 'docker compose' nor 'docker-compose' is available." >&2
+  exit 1
+}
+
+wait_for_demo() {
+  local tries=30
+  local url="http://localhost:8085/api/catalog"
+  for _ in $(seq 1 "$tries"); do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "ERROR: demo endpoint did not become ready: $url" >&2
+  exit 1
+}
+
+cleanup() {
+  if [[ "$WITH_DEMO_COMPOSE" == "true" ]]; then
+    echo "==> [cleanup] Stopping demo environment"
+    (cd "$DEMO_DIR" && compose_cmd down -v)
+  fi
+}
+
+trap cleanup EXIT
+
+if [[ "$WITH_DEMO_COMPOSE" == "true" ]]; then
+  echo "==> [0/8] Starting demo environment"
+  (cd "$DEMO_DIR" && compose_cmd up -d --build)
+  wait_for_demo
+fi
 
 echo "==> [1/8] Building entropy binary"
 go build -o "$BIN" "$ROOT_DIR/cmd/entropy"

@@ -40,3 +40,23 @@ jobs:
 
       - name: Run tests with coverage and race detector
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+  smoke-e2e:
+    name: End-to-End Smoke Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Ensure smoke script is executable
+        run: chmod +x scripts/e2e-smoke.sh
+
+      - name: Run e2e smoke pipeline
+        run: ./scripts/e2e-smoke.sh --with-demo-compose
