@@ -3,11 +3,11 @@
   <img src="./docs/img/entropy-logo.svg" alt="Entropy Hero Banner" width="560" />
 </p>
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy-cli)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy-cli)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/ibrahimkizilarslan/entropy-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/ibrahimkizilarslan/entropy-cli/actions/workflows/ci.yml)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy-cli)](https://go.dev/)
-[![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy-cli)](https://github.com/ibrahimkizilarslan/entropy-cli/releases)
+[![CI](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
+[![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy)](https://github.com/ibrahimkizilarslan/entropy/releases)
 
 Entropy is a **developer-first chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
@@ -44,7 +44,7 @@ You can install Entropy using Go or by building from source.
 This installs the binary to your `$GOPATH/bin` folder, allowing you to run it from anywhere.
 
 ```bash
-go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
+go install github.com/ibrahimkizilarslan/entropy/cmd/entropy@latest
 ```
 > [!TIP]
 > Ensure your Go bin directory is in your system's `PATH`.
@@ -55,8 +55,8 @@ go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
 If you want to contribute or build locally:
 
 ```bash
-git clone https://github.com/ibrahimkizilarslan/entropy-cli.git
-cd entropy-cli
+git clone https://github.com/ibrahimkizilarslan/entropy.git
+cd entropy
 go mod download
 go build -o entropy ./cmd/entropy
 ```
@@ -141,7 +141,7 @@ For a deep dive into configuring and running Entropy, check out the documentatio
 
 We welcome contributions! Whether it's adding new chaos actions, fixing bugs, or improving documentation, please see our [Contributing Guide](CONTRIBUTING.md) to get started.
 
-If Entropy helps your team test resilience earlier, consider starring the project and checking the [Star History](https://star-history.com/#ibrahimkizilarslan/entropy-cli&Date).
+If Entropy helps your team test resilience earlier, consider starring the project and checking the [Star History](https://star-history.com/#ibrahimkizilarslan/entropy&Date).
 
 ## License
 
