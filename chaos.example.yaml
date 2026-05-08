@@ -1,41 +1,46 @@
-# Entropy — Example chaos configuration
-# Copy this file to chaos.yaml and edit to match your docker-compose services.
+# Entropy example random-chaos configuration.
+# Copy this file to chaos.yaml and update targets to match your services.
 
-# How often (seconds) to select and inject a chaos action
+# Injection interval in seconds (must be >= 1)
 interval: 10
 
-# Docker container names or docker-compose service names to target
+# Docker Compose service names or container names
 targets:
-  - service-a
-  - service-b
+  - api-gateway
+  - catalog-service
+  - auth-service
 
-# Actions to apply (supported: stop, restart, pause, delay, loss, limit_cpu, limit_memory)
+# Supported actions:
+# stop, restart, pause, delay, loss, limit_cpu, limit_memory
+#
+# You can use simple scalar actions:
+#   - stop
+# Or full action specs with parameters:
+#   - name: delay
+#     latency_ms: 250
+#     jitter_ms: 40
+#     duration: 20
 actions:
   - stop
   - restart
-  # - pause
-  
-  # Example: Network Delay (Linux only, requires sudo + iproute2)
-  # - name: delay
-  #   latency_ms: 300
-  #   jitter_ms: 50
-  #   duration: 30
-  
-  # Example: Packet Loss
-  # - name: loss
-  #   percent: 20
-  #   duration: 30
-  
-  # Example: Resource Constraints
-  # - name: limit_cpu
-  #   cpus: 0.5          # Restrict to half a CPU core
-  #   duration: 60
-  # - name: limit_memory
-  #   memory_mb: 256     # Restrict to 256MB RAM
-  #   duration: 60
-# Safety settings (Phase 5)
+  - pause
+  - name: delay
+    latency_ms: 300
+    jitter_ms: 50
+    duration: 15
+  - name: loss
+    percent: 20
+    duration: 15
+  - name: limit_cpu
+    cpus: 0.25
+    duration: 20
+  - name: limit_memory
+    memory_mb: 128
+    duration: 20
+
+# Safety controls
 safety:
-  max_down: 1          # Maximum containers stopped simultaneously
-  cooldown: 30         # Seconds to wait between injections
-  dry_run: false       # If true, log actions without executing them
+  max_down: 1      # Maximum number of simultaneously down services
+  cooldown: 20     # Minimum seconds between injections
+  dry_run: false   # If true, log planned injections without executing
 

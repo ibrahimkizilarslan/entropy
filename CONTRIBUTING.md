@@ -44,3 +44,4 @@ First off, thank you for considering contributing to Entropy CLI! It's people li
 - **Fail gracefully:** Entropy is a resilience tool. It must never crash unexpectedly. Always handle errors and ensure `RevertAll` functions clean up any injected chaos.
 
 We look forward to your contributions!
+

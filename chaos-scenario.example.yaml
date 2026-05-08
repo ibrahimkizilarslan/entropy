@@ -1,42 +1,56 @@
-# chaos-scenario.example.yaml dosyanızı şu şekilde güncelleyebilirsiniz:
+# Entropy deterministic scenario example.
+# This example is aligned with the demo environment in examples/demo-distributed.
 
-name: "Auth API Survives MongoDB Outage"
-description: "mongo-auth çöktüğünde auth servisi tamamen çökmemeli, kullanıcılara düzgün bir hata (500 veya 503) dönmelidir."
-hypothesis: "MongoDB yokken API 500 döner, geldiğinde 200 döner."
+name: "Gateway Degrades Gracefully During Catalog CPU Stress"
+description: "Applies CPU throttling to catalog-service and verifies api-gateway remains healthy."
+hypothesis: "The gateway endpoint should keep returning HTTP 200 during and after stress."
 
 steps:
-  # 1. Her şey normalken Auth API'sine istek at (200 OK dönmeli)
+  # 1) Baseline HTTP health check
   - probe:
       type: http
-      url: "http://localhost:3000/api/auth"   # <--- BURAYI BACKEND PORTUNUZA GÖRE DEĞİŞTİRİN
+      url: "http://localhost:8085/api/catalog"
       expect_status: 200
-
-  # 2. mongo-auth veritabanını acımasızca durdur!
-  - inject:
-      action: stop
-      target: mongo-auth
-      
-  # 3. Veritabanının kapanmasını 3 saniye bekle
-  - wait: 3s
-  
-  # 4. Auth API'sine tekrar istek at. 
-  # Veritabanı gittiği için artık 200 DÖNMEMELİ! (Örn: 500 dönebilir)
-  - probe:
-      type: http
-      url: "http://localhost:3000/api/auth"
-      expect_not_status: 200
       timeout: 5
 
-  # 5. Sistemi geri kurtar (Veritabanını başlat)
+  # 2) Optional TCP reachability probe
+  - probe:
+      type: tcp
+      host_port: "localhost:8085"
+      timeout: 3
+
+  # 3) Inject temporary CPU limit
   - inject:
-      action: restart
-      target: mongo-auth
+      action:
+        name: limit_cpu
+        cpus: 0.10
+        duration: 10
+      target: catalog-service
 
-  # 6. MongoDB'nin kendine gelmesini 5 saniye bekle
-  - wait: 5s
+  # 4) Give the system time to absorb the fault
+  - wait: 3s
 
-  # 7. Son kontrol: Auth API'si tekrar 200 OK durumuna dönebildi mi?
+  # 5) Service should still respond
   - probe:
       type: http
-      url: "http://localhost:3000/api/auth"
+      url: "http://localhost:8085/api/catalog"
       expect_status: 200
+      timeout: 5
+
+  # 6) Optional exec probe inside a container
+  #    Keep command simple because it is split by spaces.
+  - probe:
+      type: exec
+      target: api-gateway
+      command: cat /etc/hosts
+      timeout: 5
+
+  # 7) Wait for auto-restore duration to pass
+  - wait: 12s
+
+  # 8) Final verification after rollback
+  - probe:
+      type: http
+      url: "http://localhost:8085/api/catalog"
+      expect_status: 200
+      timeout: 5
