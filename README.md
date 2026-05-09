@@ -1,8 +1,14 @@
 
-<p align="center">
-  <img src="./docs/img/entropy_logo.svg" alt="Entropy Hero Banner" width="250" />
-  <h1>Entropy</h1>
-</p>
+<table>
+  <tr>
+    <td width="30%">
+      <img src="./docs/img/entropy_logo.svg" alt="Entropy Logo" width="200" />
+    </td>
+    <td width="70%">
+      <h1>Entropy</h1>
+    </td>
+  </tr>
+</table>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
