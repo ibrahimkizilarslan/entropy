@@ -1,7 +1,6 @@
 
 <p align="center">
   <img src="./docs/img/entropy_logo.svg" alt="Entropy Hero Banner" width="280" style="display: inline-block; vertical-align: middle; margin-right: 15px;" />
-  <span style="display: inline-block; vertical-align: middle; font-size: 2.5em; font-weight: bold;">Entropy</span>
 </p>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
