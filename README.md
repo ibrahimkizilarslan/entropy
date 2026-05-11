@@ -1,38 +1,26 @@
 
-# Entropy
+<p align="center">
+  <img src="./docs/img/entropy_logo.svg" alt="Entropy Hero Banner" width="280" style="display: inline-block; vertical-align: middle; margin-right: 15px;" />
+</p>
 
-<table>
-  <tr>
-    <td style="width: 150px;">
-      <img src="./docs/img/entropy_logo.svg" alt="Entropy Logo" width="140" />
-    </td>
-    <td>
-      <h2 style="margin: 0 0 10px 0;">Entropy</h2>
-      <p style="margin: 0; color: #666; font-size: 16px;">Developer-first chaos engineering engine for Docker-based microservices. Inject controlled faults, validate resilience, test hypothesis-driven scenarios locally.</p>
-    </td>
-  </tr>
-</table>
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy-cli)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy-cli)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/ibrahimkizilarslan/entropy-cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ibrahimkizilarslan/entropy-cli/actions/workflows/ci.yml)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy-cli)](https://go.dev/)
-[![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy-cli)](https://github.com/ibrahimkizilarslan/entropy-cli/releases)
-
----
+[![CI](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
+[![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy)](https://github.com/ibrahimkizilarslan/entropy/releases)
 
 Entropy is a **developer-first chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
 Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code ever reaches production.
 
-## Features
+## Core Capabilities
 
-- **Smart Context Discovery** — Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
-- **Hypothesis-Driven Scenarios** — Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
-- **Multi-Protocol Probes** — Verify infrastructure health using HTTP, TCP socket checks, and Docker Exec probes to run raw shell commands (like `redis-cli ping`) inside containers.
-- **Graceful Rollback** — Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos, leaving your system pristine.
-- **Resource Constraints** — Dynamically enforce CPU quotas and Memory limits on active containers.
-- **Network Degradation** — Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
+- **Smart Context Discovery:** Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
+- **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
+- **Multi-Protocol Probes (NEW!):** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker Exec probes** to run raw shell commands (like `redis-cli ping`) inside containers.
+- **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes CPU limits) leaving your system pristine.
+- **Resource Constraints:** Dynamically enforce CPU quotas and Memory limits on active containers.
+- **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
 ## Architecture & Vision
 
@@ -42,7 +30,9 @@ Future iterations will introduce `KubernetesClient` adapters, allowing the exact
 
 ## Installation
 
-### Prerequisites
+You can install Entropy using Go or by building from source.
+
+## Prerequisites
 
 - **Go:** `1.22.2+` (from `go.mod`)
 - **Docker:** Running local Docker daemon (Docker Desktop or native Linux engine)
@@ -54,7 +44,7 @@ Future iterations will introduce `KubernetesClient` adapters, allowing the exact
 This installs the binary to your `$GOPATH/bin` folder, allowing you to run it from anywhere.
 
 ```bash
-go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
+go install github.com/ibrahimkizilarslan/entropy/cmd/entropy@latest
 ```
 > [!TIP]
 > Ensure your Go bin directory is in your system's `PATH`.
@@ -65,14 +55,14 @@ go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
 If you want to contribute or build locally:
 
 ```bash
-git clone https://github.com/ibrahimkizilarslan/entropy-cli.git
-cd entropy-cli
+git clone https://github.com/ibrahimkizilarslan/entropy.git
+cd entropy
 go mod download
 go build -o entropy ./cmd/entropy
 ```
 
 ### Method 3: Install from Releases
-Download a prebuilt binary from the [Releases](https://github.com/ibrahimkizilarslan/entropy-cli/releases) page for your platform, then:
+Download a prebuilt binary from the [Releases](https://github.com/ibrahimkizilarslan/entropy/releases) page for your platform, then:
 
 - Place it in a directory in your `PATH`
 - Ensure it is executable (`chmod +x entropy` on Unix-like systems)
@@ -175,7 +165,7 @@ Please also review:
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
 
-If Entropy helps your team test resilience earlier, consider starring the project and checking the [Star History](https://star-history.com/#ibrahimkizilarslan/entropy-cli&Date).
+If Entropy helps your team test resilience earlier, consider starring the project and checking the [Star History](https://star-history.com/#ibrahimkizilarslan/entropy&Date).
 
 ## License
 

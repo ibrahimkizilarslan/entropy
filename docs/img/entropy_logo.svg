@@ -1,89 +1,57 @@
-<svg width="100%" viewBox="0 0 680 680" role="img" xmlns="http://www.w3.org/2000/svg" style="">
+<svg width="100%" viewBox="0 0 820 280" role="img" xmlns="http://www.w3.org/2000/svg" style="">
 <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Entropy CLI Logo</title>
-<desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Kırılan kalkan — güç ve kaos sembolü, geliştirilmiş versiyon</desc>
 <defs>
-  <linearGradient id="leftShield" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
-    <stop offset="60%" stop-color="#cccccc" stop-opacity="0.85"/>
-    <stop offset="100%" stop-color="#888888" stop-opacity="0.75"/>
-  </linearGradient>
-  <linearGradient id="rightShield" x1="100%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%" stop-color="#aaaaaa" stop-opacity="0.80"/>
-    <stop offset="50%" stop-color="#888888" stop-opacity="0.70"/>
-    <stop offset="100%" stop-color="#555555" stop-opacity="0.65"/>
-  </linearGradient>
   <linearGradient id="crackGlow" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
-    <stop offset="40%" stop-color="#ffffff" stop-opacity="0.5"/>
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="1.0"/>
+    <stop offset="55%" stop-color="#ffffff" stop-opacity="0.6"/>
     <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
   </linearGradient>
-  <filter id="crackBloom" x="-40%" y="-10%" width="180%" height="120%">
-    <feGaussianBlur stdDeviation="6" result="blur"/>
+  <filter id="bloom" x="-100%" y="-30%" width="300%" height="160%">
+    <feGaussianBlur stdDeviation="7" result="blur"/>
     <feComposite in="SourceGraphic" in2="blur" operator="over"/>
   </filter>
-  <filter id="shieldShadow" x="-10%" y="-10%" width="130%" height="130%">
-    <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000000" flood-opacity="0.4"/>
+  <filter id="shieldShadow">
+    <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000000" flood-opacity="0.55"/>
   </filter>
-  <clipPath id="leftClip">
-    <polygon points="340,95 168,172 168,352 254,452 340,492"/>
-  </clipPath>
-  <clipPath id="rightClip">
-    <polygon points="340,95 512,172 512,352 426,452 340,492"/>
-  </clipPath>
+  <linearGradient id="textGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#f0f0f0"/>
+    <stop offset="100%" stop-color="#888888"/>
+  </linearGradient>
 </defs>
 
+<!-- KALKAN -->
+<g transform="translate(60, 18) scale(0.355)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <g filter="url(#shieldShadow)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <path fill="#111111" d="M340,95 L168,172 L168,352 L254,452 L340,492 L340,95Z" style="fill:rgb(17, 17, 17);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  </g>
+  <path fill="#ffffff" opacity="0.04" d="M340,95 L220,155 L205,310 L268,415 L340,455 L340,95Z" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.04;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <path fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.12" d="M340,95 L168,172 L168,352 L254,452 L340,492" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.12;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
 
+  <g filter="url(#shieldShadow)" transform="translate(16,22) rotate(3,420,300)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <path fill="#1e1e1e" d="M324,73 L496,150 L496,330 L410,430 L324,470 L324,73Z" style="fill:rgb(30, 30, 30);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  </g>
+  <path fill="#ffffff" opacity="0.03" transform="translate(16,22) rotate(3,420,300)" d="M324,73 L440,138 L458,285 L395,388 L324,445 L324,73Z" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.03;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <path fill="none" stroke="#ffffff" stroke-width="1.0" opacity="0.08" transform="translate(16,22) rotate(3,420,300)" d="M324,73 L496,150 L496,330 L410,430 L324,470" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.08;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
 
-<!-- SOL KALKAN — ana form -->
-<g filter="url(#shieldShadow)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <path d="M340,95&#10;       L168,172&#10;       L168,352&#10;       L254,452&#10;       L340,492&#10;       L340,95Z" style="fill:rgb(238, 238, 238);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <polygon fill="#ffffff" points="328,88 352,88 385,240 372,252 360,310 348,318 342,492 330,492 318,318 308,310 295,252 282,240" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <polygon fill="#ffffff" points="334,100 346,100 354,150 344,154 336,150" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <polygon fill="#ffffff" points="337,118 349,113 362,158 351,162 339,156" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <ellipse cx="340" cy="155" rx="18" ry="70" fill="url(#crackGlow)" opacity="0.45" filter="url(#bloom)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.45;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <line x1="310" y1="205" x2="262" y2="228" stroke="#ffffff" stroke-width="1.2" opacity="0.18" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.18;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="306" y1="295" x2="248" y2="315" stroke="#ffffff" stroke-width="1.0" opacity="0.14" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.14;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="368" y1="190" x2="420" y2="212" stroke="#ffffff" stroke-width="1.2" opacity="0.18" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.18;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="372" y1="278" x2="428" y2="296" stroke="#ffffff" stroke-width="1.0" opacity="0.14" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.14;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <circle cx="340" cy="142" r="5" fill="#ffffff" opacity="1.0" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="340" cy="142" r="14" fill="#ffffff" opacity="0.20" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.2;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="340" cy="142" r="30" fill="#ffffff" opacity="0.07" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.07;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
 </g>
 
-<!-- SOL KALKAN — iç yüzey tonu, derinlik -->
-<path opacity="0.25" d="M340,95 L220,155 L205,310 L268,415 L340,455 L340,95Z" style="fill:rgb(204, 204, 204);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.25;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<!-- AYRAÇ -->
+<line x1="248" y1="48" x2="248" y2="232" stroke="#333333" stroke-width="1" opacity="0.6" style="fill:rgb(0, 0, 0);stroke:rgb(51, 51, 51);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.6;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
 
-<!-- SOL KALKAN — parlak üst kenar -->
-<path fill="none" stroke-width="2.5" opacity="0.35" d="M340,95 L168,172 L168,352 L254,452 L340,492" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:2.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.35;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- SAĞ KALKAN — hafif sağa ve aşağı kaymış, kırılma hareketi -->
-<g filter="url(#shieldShadow)" transform="translate(16, 22) rotate(3, 420, 300)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <path d="M324,73&#10;       L496,150&#10;       L496,330&#10;       L410,430&#10;       L324,470&#10;       L324,73Z" style="fill:rgb(170, 170, 170);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-</g>
-
-<!-- SAĞ KALKAN — iç yüzey tonu -->
-<path opacity="0.20" transform="translate(16,22) rotate(3,420,300)" d="M324,73 L440,138 L458,285 L395,388 L324,445 L324,73Z" style="fill:rgb(136, 136, 136);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.2;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- SAĞ KALKAN — parlak üst kenar -->
-<path fill="none" stroke-width="1.5" opacity="0.25" transform="translate(16,22) rotate(3,420,300)" d="M324,73 L496,150 L496,330 L410,430 L324,470" style="fill:none;stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.25;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- ÇATLAK — ana boşluk -->
-<polygon points="328,88 352,88&#10;          385,240 372,252&#10;          360,310 348,318&#10;          342,492 330,492&#10;          318,318 308,310&#10;          295,252 282,240" style="fill:rgb(14, 14, 14);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- ÇATLAK — zigzag keskin kırılma detayı -->
-<polyline fill="none" stroke-width="1.0" opacity="0.15" points="340,100 346,180 334,230 350,285 330,340 344,400 340,492" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.15;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- ÇATLAK ışıması — üstten gelen enerji -->
-<ellipse cx="340" cy="160" rx="14" ry="55" fill="url(#crackGlow)" opacity="0.6" filter="url(#crackBloom)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.6;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- ÇATLAK — ince parlak çizgi, kırık hattı -->
-<line x1="340" y1="95" x2="340" y2="492" stroke-width="0.8" opacity="0.20" style="stroke:#ffffff;fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.2;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- Küçük yan çatlaklar — sol -->
-<line x1="310" y1="200" x2="268" y2="225" stroke-width="1.0" opacity="0.12" style="stroke:#888;fill:rgb(0, 0, 0);stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.12;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<line x1="305" y1="290" x2="252" y2="308" stroke-width="0.8" opacity="0.10" style="stroke:#888;fill:rgb(0, 0, 0);stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<line x1="315" y1="375" x2="270" y2="385" stroke-width="0.8" opacity="0.08" style="stroke:#888;fill:rgb(0, 0, 0);stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.08;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- Küçük yan çatlaklar — sağ -->
-<line x1="368" y1="185" x2="415" y2="205" stroke-width="1.0" opacity="0.12" style="stroke:#888;fill:rgb(0, 0, 0);stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.12;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<line x1="372" y1="275" x2="425" y2="290" stroke-width="0.8" opacity="0.10" style="stroke:#888;fill:rgb(0, 0, 0);stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<line x1="362" y1="360" x2="408" y2="368" stroke-width="0.8" opacity="0.08" style="stroke:#888;fill:rgb(0, 0, 0);stroke:rgb(136, 136, 136);color:rgb(255, 255, 255);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.08;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- Üst çatlak dallanması -->
-<polygon points="334,100 346,100 352,148 344,152 336,148" style="fill:rgb(14, 14, 14);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<polygon points="338,120 348,115 360,155 350,158 340,153" style="fill:rgb(14, 14, 14);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- Merkez parlak nokta — kırılma orijini -->
-<circle cx="340" cy="145" r="4" opacity="0.7" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<circle cx="340" cy="145" r="10" opacity="0.12" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.12;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<circle cx="340" cy="145" r="20" opacity="0.05" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.05;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<!-- "entropy" yazısı — dikey ortalanmış -->
+<text x="278" y="178" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="96" font-weight="700" letter-spacing="-3" fill="url(#textGrad)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;SF Pro Display&quot;, Inter, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-size:96px;font-weight:700;text-anchor:start;dominant-baseline:auto">entropy</text>
 </svg>
