@@ -18,7 +18,7 @@ func setDefaults(cfg *ChaosConfig) {
 	if len(cfg.Actions) == 0 {
 		cfg.Actions = []ActionSpec{{Name: "stop"}}
 	}
-	
+
 	for i := range cfg.Actions {
 		if cfg.Actions[i].Name == "delay" {
 			if cfg.Actions[i].LatencyMs == 0 {

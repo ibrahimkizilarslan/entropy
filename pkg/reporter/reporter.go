@@ -10,10 +10,10 @@ import (
 )
 
 type ReportData struct {
-	ScenarioName  string
-	Hypothesis    string
-	Result        engine.ScenarioResult
-	Timestamp     string
+	ScenarioName   string
+	Hypothesis     string
+	Result         engine.ScenarioResult
+	Timestamp      string
 	EntropyVersion string
 }
 

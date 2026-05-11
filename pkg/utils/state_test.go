@@ -140,7 +140,7 @@ func TestStateManager_RunningPID(t *testing.T) {
 
 	// Write state with our own PID
 	myPID := os.Getpid()
-	sm.Write(&EngineState{PID: myPID})
+	_ = sm.Write(&EngineState{PID: myPID})
 
 	pid := sm.RunningPID()
 	if pid == nil || *pid != myPID {
@@ -148,7 +148,7 @@ func TestStateManager_RunningPID(t *testing.T) {
 	}
 
 	// Write state with dead PID
-	sm.Write(&EngineState{PID: 999999})
+	_ = sm.Write(&EngineState{PID: 999999})
 	if pid := sm.RunningPID(); pid != nil {
 		t.Errorf("Expected nil RunningPID for dead process, got %d", *pid)
 	}

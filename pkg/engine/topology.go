@@ -11,8 +11,8 @@ import (
 )
 
 type TopologyNode struct {
-	Name     string
-	Networks []string
+	Name      string
+	Networks  []string
 	DependsOn []string
 }
 
@@ -109,29 +109,29 @@ func GenerateTopologyTree(dir string) (*pterm.TreeNode, error) {
 	// Let's group by Network to show Blast Radius easily
 	for netName, svcs := range networkMap {
 		netChildren := []pterm.TreeNode{}
-		
+
 		// Sort for determinism
 		sort.Strings(svcs)
-		
+
 		for _, svc := range svcs {
 			svcNode := nodes[svc]
 			svcText := pterm.Cyan(svc)
-			
+
 			if len(svcNode.DependsOn) > 0 {
 				svcText += pterm.Gray(fmt.Sprintf(" (depends on: %v)", svcNode.DependsOn))
 			}
-			
+
 			netChildren = append(netChildren, pterm.TreeNode{Text: svcText})
 		}
 
 		rootNodes = append(rootNodes, pterm.TreeNode{
-			Text: pterm.Green("Network: " + netName),
+			Text:     pterm.Green("Network: " + netName),
 			Children: netChildren,
 		})
 	}
 
 	tree := pterm.TreeNode{
-		Text: pterm.LightMagenta("Cluster Topology & Blast Radius"),
+		Text:     pterm.LightMagenta("Cluster Topology & Blast Radius"),
 		Children: rootNodes,
 	}
 

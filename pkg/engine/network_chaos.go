@@ -21,7 +21,7 @@ func validateContainerName(name string) error {
 
 type NetworkChaosManager struct {
 	mu     sync.Mutex
-	active map[string]int          // container name → PID
+	active map[string]int // container name → PID
 	timers map[string]*time.Timer
 }
 
@@ -62,7 +62,7 @@ func (m *NetworkChaosManager) applyRule(name string, pid int, args []string, dur
 
 	if _, exists := m.active[name]; exists {
 		m.cancelTimer(name)
-		m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
+		_ = m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
 	}
 
 	addArgs := append([]string{"qdisc", "add", "dev", "eth0", "root"}, args...)
@@ -115,7 +115,7 @@ func (m *NetworkChaosManager) Clear(name string, pid *int) {
 		if pid != nil {
 			cleanupPID = *pid
 		}
-		m.runTc(cleanupPID, []string{"qdisc", "del", "dev", "eth0", "root"})
+		_ = m.runTc(cleanupPID, []string{"qdisc", "del", "dev", "eth0", "root"})
 		delete(m.active, name)
 	}
 }
@@ -127,7 +127,7 @@ func (m *NetworkChaosManager) ClearAll() {
 		m.cancelTimer(name)
 	}
 	for name, pid := range m.active {
-		m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
+		_ = m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
 		delete(m.active, name)
 	}
 }

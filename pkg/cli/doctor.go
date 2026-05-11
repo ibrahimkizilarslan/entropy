@@ -17,7 +17,7 @@ enterprise-level resilience rules (SPOF, Resource Limits, Recovery, Observabilit
 It helps you identify weak points before running chaos experiments.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pterm.Info.Println("Starting Entropy Doctor analysis...")
-		
+
 		cwd, err := os.Getwd()
 		if err != nil {
 			pterm.Error.Printf("Failed to get current directory: %v\n", err)
@@ -45,10 +45,10 @@ It helps you identify weak points before running chaos experiments.`,
 			}
 
 			pterm.DefaultHeader.WithFullWidth().WithBackgroundStyle(pterm.NewStyle(pterm.BgDarkGray)).Printf("Service: %s", result.ServiceName)
-			
+
 			for _, issue := range result.Issues {
 				totalIssues++
-				
+
 				prefix := ""
 				switch issue.Severity {
 				case "CRITICAL":
@@ -71,9 +71,9 @@ It helps you identify weak points before running chaos experiments.`,
 			pterm.Success.Println("🎉 Amazing! Zero resilience issues found in your topology. You are production-ready!")
 		} else {
 			summaryBox := pterm.DefaultBox.WithTitle("Analysis Summary").WithTitleTopCenter()
-			summaryText := fmt.Sprintf("Total Services Scanned: %d\nTotal Issues Found: %d\nCritical Issues: %d", 
+			summaryText := fmt.Sprintf("Total Services Scanned: %d\nTotal Issues Found: %d\nCritical Issues: %d",
 				len(results), totalIssues, criticalIssues)
-			
+
 			if criticalIssues > 0 {
 				pterm.Error.Println(summaryBox.Sprint(summaryText))
 				pterm.Warning.Println("Fix the critical issues before running chaos scenarios in production.")

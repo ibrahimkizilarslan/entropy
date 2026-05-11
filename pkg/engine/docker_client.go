@@ -151,16 +151,16 @@ func (d *DockerClient) getContainerInfo(id string) (*ContainerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	ports := make(map[string]string)
 	for k, v := range c.NetworkSettings.Ports {
 		if len(v) > 0 {
 			ports[string(k)] = v[0].HostPort
 		}
 	}
-	
+
 	imageName := c.Config.Image
-	
+
 	return &ContainerInfo{
 		ID:     c.ID[:12],
 		Name:   strings.TrimPrefix(c.Name, "/"),
@@ -175,21 +175,21 @@ func (d *DockerClient) ListContainers(all bool) ([]ContainerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var res []ContainerInfo
 	for _, c := range containers {
 		name := ""
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")
 		}
-		
+
 		ports := make(map[string]string)
 		for _, p := range c.Ports {
 			if p.PublicPort != 0 {
 				ports[fmt.Sprintf("%d/%s", p.PrivatePort, p.Type)] = fmt.Sprintf("%d", p.PublicPort)
 			}
 		}
-		
+
 		res = append(res, ContainerInfo{
 			ID:     c.ID[:12],
 			Name:   name,
@@ -209,13 +209,13 @@ func (d *DockerClient) StopContainer(name string, timeout int) (*ContainerInfo, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	t := timeout
 	err = d.cli.ContainerStop(context.Background(), id, container.StopOptions{Timeout: &t})
 	if err != nil {
 		return nil, fmt.Errorf("failed to stop container %s: %w", name, err)
 	}
-	
+
 	return d.getContainerInfo(id)
 }
 
@@ -227,13 +227,13 @@ func (d *DockerClient) RestartContainer(name string, timeout int) (*ContainerInf
 	if err != nil {
 		return nil, err
 	}
-	
+
 	t := timeout
 	err = d.cli.ContainerRestart(context.Background(), id, container.StopOptions{Timeout: &t})
 	if err != nil {
 		return nil, fmt.Errorf("failed to restart container %s: %w", name, err)
 	}
-	
+
 	return d.getContainerInfo(id)
 }
 
@@ -245,12 +245,12 @@ func (d *DockerClient) PauseContainer(name string) (*ContainerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	err = d.cli.ContainerPause(context.Background(), id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pause container %s: %w", name, err)
 	}
-	
+
 	return d.getContainerInfo(id)
 }
 
@@ -262,12 +262,12 @@ func (d *DockerClient) UnpauseContainer(name string) (*ContainerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	err = d.cli.ContainerUnpause(context.Background(), id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unpause container %s: %w", name, err)
 	}
-	
+
 	return d.getContainerInfo(id)
 }
 
@@ -279,20 +279,20 @@ func (d *DockerClient) GetContainerPID(name string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	c, err := d.cli.ContainerInspect(context.Background(), id)
 	if err != nil {
 		return 0, err
 	}
-	
+
 	if !c.State.Running {
 		return 0, fmt.Errorf("container is %s, not running", c.State.Status)
 	}
-	
+
 	if c.State.Pid == 0 {
 		return 0, fmt.Errorf("PID is 0 or missing")
 	}
-	
+
 	return c.State.Pid, nil
 }
 
@@ -304,18 +304,18 @@ func (d *DockerClient) UpdateContainerResources(name string, cpuQuota int64, cpu
 	if err != nil {
 		return nil, err
 	}
-	
+
 	res := container.Resources{
 		CPUQuota:  cpuQuota,
 		CPUPeriod: cpuPeriod,
 		Memory:    memLimit,
 	}
-	
+
 	_, err = d.cli.ContainerUpdate(context.Background(), id, container.UpdateConfig{Resources: res})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update resources for container %s: %w", name, err)
 	}
-	
+
 	return d.getContainerInfo(id)
 }
 

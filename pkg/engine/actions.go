@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	NetworkManager = NewNetworkChaosManager()
+	NetworkManager  = NewNetworkChaosManager()
 	ResourceManager = NewResourceChaosManager()
 )
 
@@ -36,7 +36,7 @@ func (m *ResourceChaosManager) ScheduleRestore(client *DockerClient, target stri
 		m.mu.Lock()
 		delete(m.timers, target)
 		m.mu.Unlock()
-		client.UpdateContainerResources(target, 0, 0, 0)
+		_, _ = client.UpdateContainerResources(target, 0, 0, 0)
 	})
 }
 

@@ -99,8 +99,8 @@ func TestNewChaosLogger_DefaultPath(t *testing.T) {
 	// Let's create a temp dir and set it as cwd
 	originalCwd, _ := os.Getwd()
 	tempDir := t.TempDir()
-	os.Chdir(tempDir)
-	defer os.Chdir(originalCwd)
+	_ = os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(originalCwd) }()
 
 	logger, err := NewChaosLogger("")
 	if err != nil {

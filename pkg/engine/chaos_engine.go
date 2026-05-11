@@ -38,10 +38,10 @@ type ChaosEngine struct {
 
 func NewChaosEngine(cfg *config.ChaosConfig, onEvent func(utils.EventRecord), logger *utils.ChaosLogger) *ChaosEngine {
 	return &ChaosEngine{
-		config:  cfg,
-		onEvent: onEvent,
-		logger:  logger,
-		downSet: make(map[string]bool),
+		config:    cfg,
+		onEvent:   onEvent,
+		logger:    logger,
+		downSet:   make(map[string]bool),
 		stopEvent: make(chan struct{}),
 	}
 }

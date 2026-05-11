@@ -14,13 +14,13 @@ var (
 )
 
 type ActionSpec struct {
-	Name        string   `yaml:"name"`
-	LatencyMs   int      `yaml:"latency_ms,omitempty"`
-	JitterMs    int      `yaml:"jitter_ms,omitempty"`
-	LossPercent int      `yaml:"loss_percent,omitempty"`
-	CPUs        float64  `yaml:"cpus,omitempty"`
-	MemoryMB    int      `yaml:"memory_mb,omitempty"`
-	Duration    *int     `yaml:"duration,omitempty"`
+	Name        string  `yaml:"name"`
+	LatencyMs   int     `yaml:"latency_ms,omitempty"`
+	JitterMs    int     `yaml:"jitter_ms,omitempty"`
+	LossPercent int     `yaml:"loss_percent,omitempty"`
+	CPUs        float64 `yaml:"cpus,omitempty"`
+	MemoryMB    int     `yaml:"memory_mb,omitempty"`
+	Duration    *int    `yaml:"duration,omitempty"`
 }
 
 func (a *ActionSpec) UnmarshalYAML(value *yaml.Node) error {
@@ -34,7 +34,7 @@ func (a *ActionSpec) UnmarshalYAML(value *yaml.Node) error {
 	}
 	for i := 0; i < len(value.Content); i += 2 {
 		if value.Content[i].Value == "percent" && a.LossPercent == 0 {
-			value.Content[i+1].Decode(&a.LossPercent)
+			_ = value.Content[i+1].Decode(&a.LossPercent)
 		}
 	}
 	return nil
@@ -146,7 +146,7 @@ func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
 	if err := value.Decode(&w); err == nil && w.Wait != "" {
 		s.Type = "wait"
 		w.Wait = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(w.Wait)), "s")
-		fmt.Sscanf(w.Wait, "%d", &s.DurationS)
+		_, _ = fmt.Sscanf(w.Wait, "%d", &s.DurationS)
 		return nil
 	}
 	var i injectStep

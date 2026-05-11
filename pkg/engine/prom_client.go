@@ -50,7 +50,7 @@ func queryPrometheus(query string) (float64, error) {
 	}
 
 	endpoint := fmt.Sprintf("%s/api/v1/query?query=%s", promAddr, url.QueryEscape(query))
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(endpoint)
 	if err != nil {

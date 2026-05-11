@@ -27,8 +27,8 @@ services will be affected if you inject chaos into a specific network or contain
 			return
 		}
 
-		pterm.DefaultTree.WithRoot(*tree).Render()
-		
+		_ = pterm.DefaultTree.WithRoot(*tree).Render()
+
 		pterm.Info.Println("💡 Tip: Containers in the same network share the same blast radius for network chaos (delay/loss).")
 	},
 }

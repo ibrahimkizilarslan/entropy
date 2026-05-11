@@ -51,27 +51,27 @@ var scenarioRunCmd = &cobra.Command{
 		}()
 
 		result := runner.Run()
-		
+
 		pterm.Println()
 		if result.Success {
 			pterm.Success.Println("Hypothesis Confirmed")
 		} else {
 			pterm.Error.Println("Hypothesis Failed")
 		}
-		
+
 		pterm.Printf("Probes passed: %d / %d\n", result.ProbesPassed, result.ProbesTotal)
 		pterm.Printf("Steps run:     %d / %d\n", result.ExecutedSteps, result.TotalSteps)
-		
+
 		if result.Error != "" {
 			pterm.Error.Printf("Error: %s\n", result.Error)
 		}
 
 		if reportOutput != "" {
 			reportData := reporter.ReportData{
-				ScenarioName:  cfg.Name,
-				Hypothesis:    cfg.Hypothesis,
-				Result:        result,
-				Timestamp:     time.Now().Format(time.RFC1123),
+				ScenarioName:   cfg.Name,
+				Hypothesis:     cfg.Hypothesis,
+				Result:         result,
+				Timestamp:      time.Now().Format(time.RFC1123),
 				EntropyVersion: "v0.5.0", // Hardcoded for now
 			}
 
@@ -90,7 +90,7 @@ var scenarioRunCmd = &cobra.Command{
 		}
 
 		pterm.Println()
-		
+
 		if !result.Success {
 			os.Exit(1)
 		}

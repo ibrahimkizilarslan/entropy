@@ -47,8 +47,8 @@ var startCmd = &cobra.Command{
 		}
 
 		if detach {
-			state.EnsureDir()
-			
+			_ = state.EnsureDir()
+
 			cmdArgs := []string{"run-worker", "--config", configPath, "--max-down", fmt.Sprintf("%d", cfg.Safety.MaxDown), "--cooldown", fmt.Sprintf("%d", cfg.Safety.Cooldown)}
 			if cfg.Safety.DryRun {
 				cmdArgs = append(cmdArgs, "--dry-run")
@@ -91,7 +91,7 @@ var stopCmd = &cobra.Command{
 		pid := state.RunningPID()
 
 		if pid == nil {
-			state.Clear()
+			_ = state.Clear()
 			pterm.Error.Println("No chaos engine is running.")
 			os.Exit(1)
 		}
@@ -104,7 +104,7 @@ var stopCmd = &cobra.Command{
 			pterm.Warning.Printf("Could not send signal to PID %d: %v\n", *pid, err)
 		}
 
-		state.Clear()
+		_ = state.Clear()
 		pterm.Success.Printf("Chaos engine (PID %d) has been stopped.\n", *pid)
 	},
 }
@@ -120,7 +120,7 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		pterm.DefaultBasicText.Printf("PID: %d\nConfig: %s\nMode: %v\nCycles: %d\nDown: %v\nCooldown Remaining: %.1f\n", 
+		pterm.DefaultBasicText.Printf("PID: %d\nConfig: %s\nMode: %v\nCycles: %d\nDown: %v\nCooldown Remaining: %.1f\n",
 			data.PID, data.ConfigPath, data.DryRun, data.CycleCount, data.DownContainers, data.CooldownRemaining)
 	},
 }
@@ -201,7 +201,7 @@ func init() {
 	rootCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(cleanupCmd)
-	
+
 	rootCmd.AddCommand(injectCmd)
 	injectCmd.Flags().StringP("config", "c", "chaos.yaml", "Path to chaos config file")
 	injectCmd.Flags().Bool("skip-validation", false, "Bypass allow-list check")

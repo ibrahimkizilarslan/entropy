@@ -8,15 +8,15 @@ import (
 )
 
 type ScenarioResult struct {
-	Success            bool
-	ProbesPassed       int
-	ProbesTotal        int
-	SteadyStatePassed  int
-	SteadyStateTotal   int
-	ExecutedSteps      int
-	TotalSteps         int
-	Error              string
-	SteadyStateError   string
+	Success           bool
+	ProbesPassed      int
+	ProbesTotal       int
+	SteadyStatePassed int
+	SteadyStateTotal  int
+	ExecutedSteps     int
+	TotalSteps        int
+	Error             string
+	SteadyStateError  string
 }
 
 type ScenarioRunner struct {
@@ -80,7 +80,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 		} else if step.Type == "inject" {
 			actionName := step.Action.Name
 			r.logCb(fmt.Sprintf("Injecting %s into %s", actionName, step.Target))
-			
+
 			if actionName == "stop" {
 				r.stopped = append(r.stopped, step.Target)
 			} else if actionName == "pause" {
@@ -105,7 +105,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 			r.logCb(fmt.Sprintf("✅ Container status: %s", info.Status))
 		} else if step.Type == "probe" {
 			res.ProbesTotal++
-			
+
 			probeTarget := step.Probe.URL
 			if step.Probe.Type == "tcp" {
 				probeTarget = step.Probe.HostPort
@@ -113,7 +113,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 				probeTarget = fmt.Sprintf("exec '%s' on %s", step.Probe.Command, step.Probe.Target)
 			}
 			r.logCb(fmt.Sprintf("Probing %s", probeTarget))
-			
+
 			probeRes := RunProbe(step.Probe, dc)
 			if probeRes.Success {
 				res.ProbesPassed++
@@ -146,18 +146,18 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 func (r *ScenarioRunner) RevertAll() {
 	r.logCb("\n[System] Initiating graceful rollback...")
 	CleanupAll() // network and resource chaos
-	
+
 	if r.dc == nil {
 		return
 	}
-	
+
 	for _, target := range r.stopped {
 		r.logCb(fmt.Sprintf("Rollback: Restarting container %s", target))
-		r.dc.RestartContainer(target, 10)
+		_, _ = r.dc.RestartContainer(target, 10)
 	}
 	for _, target := range r.paused {
 		r.logCb(fmt.Sprintf("Rollback: Unpausing container %s", target))
-		r.dc.UnpauseContainer(target)
+		_, _ = r.dc.UnpauseContainer(target)
 	}
 	r.logCb("[System] Rollback complete.")
 }

@@ -41,7 +41,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 
 	onEvent := func(e utils.EventRecord) {
 		status := chaosEngine.Status()
-		state.Write(&utils.EngineState{
+		_ = state.Write(&utils.EngineState{
 			PID:               myPid,
 			StartedAt:         startedAt,
 			ConfigPath:        configPath,
@@ -57,7 +57,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 
 	chaosEngine = engine.NewChaosEngine(cfg, onEvent, logger)
 
-	state.Write(&utils.EngineState{
+	_ = state.Write(&utils.EngineState{
 		PID:               myPid,
 		StartedAt:         startedAt,
 		ConfigPath:        configPath,
@@ -79,6 +79,6 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 
 	<-c
 	chaosEngine.Stop()
-	state.Clear()
+	_ = state.Clear()
 	return nil
 }

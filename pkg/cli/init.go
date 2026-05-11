@@ -13,7 +13,7 @@ var initCmd = &cobra.Command{
 	Short: "Auto-discover docker-compose.yml and generate a chaos.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
 		force, _ := cmd.Flags().GetBool("force")
-		
+
 		outFile := "chaos.yaml"
 		if _, err := os.Stat(outFile); err == nil && !force {
 			pterm.Error.Printf("'%s' already exists. Use --force to overwrite.\n", outFile)

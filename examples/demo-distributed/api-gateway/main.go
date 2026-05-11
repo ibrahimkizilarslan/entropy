@@ -34,10 +34,10 @@ func main() {
 
 	http.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// Attempt to fetch from the actual Catalog Service (.NET)
 		resp, err := client.Get("http://catalog-service:80/catalog")
-		
+
 		if err != nil {
 			log.Printf("Catalog Service unavailable (Error: %v), triggering fallback.\n", err)
 			sendFallback(w)

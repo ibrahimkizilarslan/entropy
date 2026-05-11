@@ -41,7 +41,7 @@ var dockerListCmd = &cobra.Command{
 			})
 		}
 
-		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+		_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 	},
 }
 
@@ -49,5 +49,3 @@ func init() {
 	rootCmd.AddCommand(dockerCmd)
 	dockerCmd.AddCommand(dockerListCmd)
 }
-
-
