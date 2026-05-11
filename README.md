@@ -22,11 +22,45 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 - **Resource Constraints:** Dynamically enforce CPU quotas and Memory limits on active containers.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
+## See it in action
+
+<!-- Replace the source below with your actual GIF recording once ready -->
+![Entropy Demo](https://raw.githubusercontent.com/ibrahimkizilarslan/entropy/main/docs/img/entropy-demo.gif)
+
 ## Architecture & Vision
 
 Entropy acts as the chaos injection layer for modern dev environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation) locally, developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
 
+```mermaid
+graph TD
+    subgraph "Local Environment"
+        User([Developer / SRE]) -->|scenario run| CLI[Entropy CLI]
+        
+        subgraph "Entropy Engine"
+            CLI --> Discovery[Service Discovery]
+            CLI --> Runner[Scenario Runner]
+            CLI --> Safety[Graceful Rollback]
+        end
+        
+        Discovery -.->|analyzes| Compose[docker-compose.yml]
+        
+        subgraph "Target Infrastructure"
+            Runner -->|Docker API| API[Docker Engine API]
+            API -->|Resource Limits| C1[(Container A)]
+            API -->|Network Chaos| C2[(Container B)]
+            API -->|Lifecycle Actions| C3[(Container C)]
+        end
+        
+        Runner -->|HTTP/TCP/Exec| Probes{Health Probes}
+        Probes -.->|validate hypothesis| C1 & C2 & C3
+    end
+    
+    Safety -->|signal intercept| API
+    API -->|revert all faults| C1 & C2 & C3
+```
+
 Future iterations will introduce `KubernetesClient` adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters.
+
 
 ## Installation
 
