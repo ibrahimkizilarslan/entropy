@@ -2,18 +2,18 @@
 
 Welcome to the **Polyglot Distributed E-Commerce Sandbox**. This environment is specifically designed to showcase the power of **Entropy Chaos Engineering CLI** in a realistic, senior-level microservices architecture.
 
-## 🏗️ Architecture
+## Architecture
 
 This demo spins up 7 containers across 4 different programming languages and 3 different databases, demonstrating Entropy's technology-agnostic capabilities.
 
-1.  🚪 **`api-gateway` (Go):** The entry point. Implements a Circuit Breaker / Timeout pattern.
-2.  📦 **`catalog-service` (.NET 8):** The product catalog. Uses **PostgreSQL** and implements Graceful Degradation.
-3.  🛒 **`cart-service` (Python/FastAPI):** Manages user carts. Uses **Redis** and handles connection failures securely.
-4.  🔐 **`auth-service` (Node.js/Express):** Handles user sessions. Uses **MongoDB** and is built to withstand CPU starvation.
+1.  **`api-gateway` (Go):** The entry point. Implements a Circuit Breaker / Timeout pattern.
+2.  **`catalog-service` (.NET 8):** The product catalog. Uses **PostgreSQL** and implements Graceful Degradation.
+3.  **`cart-service` (Python/FastAPI):** Manages user carts. Uses **Redis** and handles connection failures securely.
+4.  **`auth-service` (Node.js/Express):** Handles user sessions. Uses **MongoDB** and is built to withstand CPU starvation.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Start the Environment
 
@@ -56,7 +56,7 @@ entropy scenario run scenarios/3-auth-cpu.yaml
 
 ---
 
-## 🧹 Cleanup
+## Cleanup
 
 When you are done playing with the chaos playground, clean up the environment:
 
