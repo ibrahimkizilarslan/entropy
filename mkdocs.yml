@@ -1,8 +1,8 @@
 site_name: Entropy CLI
 site_description: Developer-first chaos engineering for Docker-based microservices
-site_url: https://ibrahimkizilarslan.github.io/entropy-cli/
-repo_url: https://github.com/ibrahimkizilarslan/entropy-cli
-repo_name: ibrahimkizilarslan/entropy-cli
+site_url: https://ibrahimkizilarslan.github.io/entropy/
+repo_url: https://github.com/ibrahimkizilarslan/entropy
+repo_name: ibrahimkizilarslan/entropy
 
 theme:
   name: material

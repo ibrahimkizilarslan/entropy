@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/utils"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
 type EngineStatus struct {

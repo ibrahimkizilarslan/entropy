@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/engine"
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/reporter"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
+	"github.com/ibrahimkizilarslan/entropy/pkg/reporter"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

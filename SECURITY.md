@@ -10,7 +10,7 @@ Security fixes are prioritized for the latest release on the `main` branch.
 If you discover a security issue, please do not open a public issue first.
 
 - Send a private report to the maintainer through GitHub security advisories:
-  [Report a vulnerability](https://github.com/ibrahimkizilarslan/entropy-cli/security/advisories/new)
+  [Report a vulnerability](https://github.com/ibrahimkizilarslan/entropy/security/advisories/new)
 - Include:
   - A clear description of the issue
   - Reproduction steps or proof of concept

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
 var (

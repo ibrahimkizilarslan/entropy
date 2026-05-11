@@ -18,11 +18,11 @@ Use one of the following methods:
 
 ```bash
 # Install latest binary with Go
-go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
+go install github.com/ibrahimkizilarslan/entropy/cmd/entropy@latest
 
 # Or clone and build
-git clone https://github.com/ibrahimkizilarslan/entropy-cli.git
-cd entropy-cli
+git clone https://github.com/ibrahimkizilarslan/entropy.git
+cd entropy
 go build -o entropy ./cmd/entropy
 ```
 

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 	"gopkg.in/yaml.v3"
 )
 

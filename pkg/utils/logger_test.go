@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
 func TestChaosLogger(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/utils"
+	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

@@ -3,7 +3,7 @@ package cli
 import (
 	"os"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/engine"
+	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
 func TestRunProbe_HTTP(t *testing.T) {

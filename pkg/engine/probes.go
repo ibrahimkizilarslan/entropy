@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
 type ProbeResult struct {

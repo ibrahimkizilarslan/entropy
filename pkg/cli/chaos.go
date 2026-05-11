@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/config"
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/engine"
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/utils"
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/worker"
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
+	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
+	"github.com/ibrahimkizilarslan/entropy/pkg/worker"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

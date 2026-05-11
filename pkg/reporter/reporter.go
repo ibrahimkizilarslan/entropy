@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/ibrahimkizilarslan/entropy-cli/pkg/engine"
+	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
 )
 
 type ReportData struct {

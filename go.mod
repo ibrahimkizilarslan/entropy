@@ -1,4 +1,4 @@
-module github.com/ibrahimkizilarslan/entropy-cli
+module github.com/ibrahimkizilarslan/entropy
 
 go 1.22.2
 
