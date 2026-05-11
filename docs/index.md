@@ -1,76 +1,50 @@
 # Entropy
 
-Entropy is a developer-first chaos engineering platform designed to inject controlled faults into local microservice environments. 
+Entropy is a developer-first chaos engineering CLI for Docker-based microservices.
 
-By prioritizing the developer workflow, Entropy enables teams to validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code reaches production.
+It is written in Go and shipped as a single binary so developers can quickly run resilience checks in local environments.
 
-## Core Capabilities
+## What You Can Do
 
-- **Zero-Config Discovery:** Automatically parses `docker-compose.yml` to identify and target running services.
-- **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs to verify system recovery.
-- **Resource Constraints:** Dynamically enforce CPU and Memory limits on active containers using Docker SDK integration.
-- **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem` within container namespaces.
-- **Stateful Safety Mechanisms:** Enforces global cooldowns and maximum simultaneous failure limits to prevent unrecoverable system states.
-
-## Architecture & Vision
-
-Entropy is engineered with a modular, runtime-agnostic abstraction layer. While the current implementation specifically targets local Docker environments (to solve the critical gap in developer-side testing), the core engine is designed to be extensible. 
-
-Future iterations will introduce `KubernetesClient` and Cloud Provider adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters and cloud infrastructure.
+- Auto-discover services from `docker-compose.yml` and generate `chaos.yaml`
+- Run random chaos in a daemon with safety constraints
+- Run deterministic scenarios with `probe`, `inject`, and `wait` steps
+- Inject lifecycle, network, and resource faults into target containers
+- Generate topology and resilience analysis outputs with `topology` and `doctor`
 
 ## Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/ibrahimkizilarslan/Entropy.git
-cd Entropy
+Use one of the following methods:
 
-# Install as a global CLI tool
-pip install -e .
+```bash
+# Install latest binary with Go
+go install github.com/ibrahimkizilarslan/entropy-cli/cmd/entropy@latest
+
+# Or clone and build
+git clone https://github.com/ibrahimkizilarslan/entropy-cli.git
+cd entropy-cli
+go build -o entropy ./cmd/entropy
 ```
 
 ## Quick Start
 
-### 1. Auto-Discovery
-Navigate to any directory containing a `docker-compose.yml` file and initialize the workspace:
-
 ```bash
-entropy init
-```
-This generates a `chaos.yaml` configuration populated with your discovered services.
+# 1) Generate a chaos config from compose services
+./entropy init
 
-### 2. Random Fault Injection (Chaos Monkey Mode)
-Start the background engine to randomly inject faults based on your safety constraints:
+# 2) Run deterministic scenario
+./entropy scenario run chaos-scenario.example.yaml
 
-```bash
-entropy start
+# 3) Or run background random chaos
+./entropy start --detach
+./entropy status
+./entropy stop
 ```
 
-Monitor the active session:
-```bash
-entropy status
-entropy logs
-```
+## Next Docs
 
-### 3. Scenario-Based Testing
-Execute deterministic, hypothesis-driven tests:
-
-```bash
-entropy scenario run chaos-scenario.example.yaml
-```
-
-## Documentation
-
-For a deep dive into configuring and running Entropy, check out the documentation:
-
-- [Scenario DSL Reference](docs/scenarios.md) - Learn how to write deterministic chaos scenarios.
-- [Random Chaos Engine](docs/random-chaos.md) - Details on background daemon configuration and safety mechanisms.
-- [CLI Reference](docs/cli-reference.md) - Full list of available CLI commands.
-
-## Development
-
-Entropy is written in Python to maximize integration with existing developer testing workflows. The CLI is built with `Typer` and `Rich` for a premium terminal experience.
-
-## License
-MIT License
+- [Scenario DSL Reference](scenarios.md)
+- [Random Chaos Engine](random-chaos.md)
+- [CLI Reference](cli-reference.md)
+- [Release Checklist](release-checklist.md)
 
