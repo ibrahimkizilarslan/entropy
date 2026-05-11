@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="./docs/img/entropy_logo.svg" width="480" alt="Entropy">
+  <img src="./docs/img/entropy-logo.svg" width="480" alt="Entropy">
 </div>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
