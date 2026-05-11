@@ -20,7 +20,7 @@ steps:
 Entropy supports three types of steps: `probe`, `inject`, and `wait`.
 
 ### 1. Probe Step
-Used to check the state of the system before, during, or after an injection. Currently, Entropy supports HTTP probes.
+Used to check the state of the system before, during, or after an injection. Entropy supports `http`, `tcp`, and `exec` probes.
 
 ```yaml
 - probe:
@@ -37,7 +37,13 @@ Injects a specific fault into a target container. This can be a Docker lifecycle
 ```yaml
 - inject:
     target: "my-service"      # The name of the Docker container or service
-    action: "stop"            # The fault to inject (see Action Types below)
+    action:
+      name: "stop"            # The fault to inject (see Action Types below)
+
+# Shorthand is supported when no action parameters are needed:
+- inject:
+    target: "my-service"
+    action: stop
 ```
 
 **Action Types:**
@@ -46,36 +52,38 @@ Injects a specific fault into a target container. This can be a Docker lifecycle
     *   `stop`: Stops the target container.
     *   `restart`: Restarts the target container.
     *   `pause`: Pauses the target container processes.
-    *   `unpause`: Unpauses the target container.
-    *   `start`: Starts a stopped container.
 
 *   **Network Actions (Requires `tc` and `netem` in the container):**
     *   `delay`: Injects network latency.
         ```yaml
-        action: "delay"
-        latency_ms: 300
-        jitter_ms: 50
-        duration: 30 # Seconds
+                action:
+                    name: "delay"
+                    latency_ms: 300
+                    jitter_ms: 50
+                    duration: 30 # Seconds
         ```
     *   `loss`: Drops a percentage of network packets.
         ```yaml
-        action: "loss"
-        percent: 20
-        duration: 30
+                action:
+                    name: "loss"
+                    percent: 20
+                    duration: 30
         ```
 
 *   **Resource Constraints:**
     *   `limit_cpu`: Restricts CPU usage.
         ```yaml
-        action: "limit_cpu"
-        cpus: 0.5  # Limit to 0.5 cores
-        duration: 60
+                action:
+                    name: "limit_cpu"
+                    cpus: 0.5  # Limit to 0.5 cores
+                    duration: 60
         ```
     *   `limit_memory`: Restricts Memory usage.
         ```yaml
-        action: "limit_memory"
-        memory_mb: 256 # Limit to 256 MB
-        duration: 60
+                action:
+                    name: "limit_memory"
+                    memory_mb: 256 # Limit to 256 MB
+                    duration: 60
         ```
 
 ### 3. Wait Step
