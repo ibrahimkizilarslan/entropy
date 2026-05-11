@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
+
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
@@ -62,7 +62,7 @@ var startCmd = &cobra.Command{
 			}
 			daemonCmd.Stdout = logFile
 			daemonCmd.Stderr = logFile
-			daemonCmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+			setupDaemon(daemonCmd)
 
 			if err := daemonCmd.Start(); err != nil {
 				logFile.Close()
@@ -100,7 +100,7 @@ var stopCmd = &cobra.Command{
 		proc, err := os.FindProcess(*pid)
 		if err != nil {
 			pterm.Warning.Printf("Could not find process %d: %v\n", *pid, err)
-		} else if err := proc.Signal(syscall.SIGTERM); err != nil {
+		} else if err := proc.Signal(getTerminateSignal()); err != nil {
 			pterm.Warning.Printf("Could not send signal to PID %d: %v\n", *pid, err)
 		}
 
