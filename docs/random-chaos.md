@@ -32,7 +32,7 @@ safety:
 
 ## How It Works
 
-1. **Start the Engine:** Run `entropy start`. The engine detaches and runs in the background.
+1. **Start the Engine:** Run `entropy start` for foreground mode, or `entropy start --detach` to run in the background.
 2. **Action Selection:** Every `interval` seconds, the engine wakes up.
 3. **Safety Check:** The engine evaluates its safety rules:
     * Is it still within the `cooldown` period from the last injection? If yes, it sleeps.
