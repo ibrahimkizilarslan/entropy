@@ -1,7 +1,17 @@
 
-<p align="center">
-  <img src="./docs/img/entropy_logo.svg" alt="Entropy Hero Banner" width="280" style="display: inline-block; vertical-align: middle; margin-right: 15px;" />
-</p>
+# Entropy
+
+<table>
+  <tr>
+    <td style="width: 150px;">
+      <img src="./docs/img/entropy_logo.svg" alt="Entropy Logo" width="140" />
+    </td>
+    <td>
+      <h2 style="margin: 0 0 10px 0;">Entropy</h2>
+      <p style="margin: 0; color: #666; font-size: 16px;">Developer-first chaos engineering engine for Docker-based microservices. Inject controlled faults, validate resilience, test hypothesis-driven scenarios locally.</p>
+    </td>
+  </tr>
+</table>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/ibrahimkizilarslan/entropy-cli)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,18 +19,20 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy-cli)](https://go.dev/)
 [![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy-cli)](https://github.com/ibrahimkizilarslan/entropy-cli/releases)
 
+---
+
 Entropy is a **developer-first chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
 Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code ever reaches production.
 
-## Core Capabilities
+## Features
 
-- **Smart Context Discovery:** Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
-- **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
-- **Multi-Protocol Probes (NEW!):** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker Exec probes** to run raw shell commands (like `redis-cli ping`) inside containers.
-- **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes CPU limits) leaving your system pristine.
-- **Resource Constraints:** Dynamically enforce CPU quotas and Memory limits on active containers.
-- **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
+- **Smart Context Discovery** — Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
+- **Hypothesis-Driven Scenarios** — Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
+- **Multi-Protocol Probes** — Verify infrastructure health using HTTP, TCP socket checks, and Docker Exec probes to run raw shell commands (like `redis-cli ping`) inside containers.
+- **Graceful Rollback** — Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos, leaving your system pristine.
+- **Resource Constraints** — Dynamically enforce CPU quotas and Memory limits on active containers.
+- **Network Degradation** — Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
 ## Architecture & Vision
 
@@ -30,9 +42,7 @@ Future iterations will introduce `KubernetesClient` adapters, allowing the exact
 
 ## Installation
 
-You can install Entropy using Go or by building from source.
-
-## Prerequisites
+### Prerequisites
 
 - **Go:** `1.22.2+` (from `go.mod`)
 - **Docker:** Running local Docker daemon (Docker Desktop or native Linux engine)
