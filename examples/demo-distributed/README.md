@@ -28,7 +28,7 @@ docker-compose up -d --build
 
 Test the Go API Gateway (which proxies to the .NET Catalog Service):
 ```bash
-curl http://localhost:8080/api/catalog
+curl http://localhost:8085/api/catalog
 ```
 *You should see a 200 OK response originating from the PostgreSQL database.*
 
