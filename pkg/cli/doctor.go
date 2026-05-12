@@ -75,10 +75,10 @@ It helps you identify weak points before running chaos experiments.`,
 				len(results), totalIssues, criticalIssues)
 
 			if criticalIssues > 0 {
-				pterm.Error.Println(summaryBox.Sprint(summaryText))
+				pterm.Println(summaryBox.Sprint(summaryText))
 				pterm.Warning.Println("Fix the critical issues before running chaos scenarios in production.")
 			} else {
-				pterm.Warning.Println(summaryBox.Sprint(summaryText))
+				pterm.Println(summaryBox.Sprint(summaryText))
 				pterm.Info.Println("Consider fixing the warnings to improve your system's resilience.")
 			}
 		}
