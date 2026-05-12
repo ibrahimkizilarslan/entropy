@@ -31,7 +31,19 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 Entropy acts as the chaos injection layer for modern dev environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation) locally, developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2563eb', 'mainBkg': '#1e293b', 'nodeBorder': '#3b82f6', 'lineColor': '#6366f1' }}}%%
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1f2937',
+    'primaryTextColor': '#f3f4f6',
+    'primaryBorderColor': '#4b5563',
+    'lineColor': '#9ca3af',
+    'secondaryColor': '#1f2937',
+    'tertiaryColor': '#1f2937',
+    'mainBkg': '#111827',
+    'fontFamily': 'Inter, system-ui, sans-serif'
+  }
+}}%%
 graph TD
     User([Developer / SRE]) -->|scenario run| CLI[Entropy CLI]
     
@@ -56,9 +68,11 @@ graph TD
     Safety -->|signal intercept| API
     API -->|revert all faults| C1 & C2 & C3
 
-    style CLI fill:#2563eb,stroke:#3b82f6,stroke-width:2px,color:#fff
-    style Probes fill:#4f46e5,stroke:#6366f1,stroke-width:2px,color:#fff
-    style Safety fill:#dc2626,stroke:#ef4444,stroke-width:2px,color:#fff
+    %% Custom Styles to match screenshot minimalism
+    classDef default fill:#1f2937,stroke:#4b5563,color:#f3f4f6,stroke-width:1px;
+    classDef sub fill:none,stroke:#374151,color:#9ca3af,stroke-dasharray: 5 5;
+    
+    class User,CLI,Discovery,Runner,Safety,API,C1,C2,C3,Probes default;
 ```
 
 Future iterations will introduce `KubernetesClient` adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters.
