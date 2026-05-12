@@ -3,7 +3,7 @@
   <img src="./docs/img/entropy-logo.svg" width="480" alt="Entropy">
 </div>
 
-[![Go Report Card](https://img.shields.io/goreportcard/github/ibrahimkizilarslan/entropy)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
+[![Go Report Card](https://img.shields.io/badge/go%20report-A%2B-brightgreen.svg)](https://goreportcard.com/report/github.com/ibrahimkizilarslan/entropy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
