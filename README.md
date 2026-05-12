@@ -13,6 +13,10 @@ Entropy is a **developer-first chaos engineering engine** designed to inject con
 
 Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code ever reaches production.
 
+## See it in action
+
+![Entropy Demo](./docs/img/entropy-demo.gif)
+
 ## Core Capabilities
 
 - **Smart Context Discovery:** Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
@@ -22,41 +26,39 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 - **Resource Constraints:** Dynamically enforce CPU quotas and Memory limits on active containers.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
-## See it in action
-
-<!-- Replace the source below with your actual GIF recording once ready -->
-![Entropy Demo](./docs/img/entropy-demo.gif)
-
 ## Architecture & Vision
 
 Entropy acts as the chaos injection layer for modern dev environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation) locally, developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2563eb', 'mainBkg': '#1e293b', 'nodeBorder': '#3b82f6', 'lineColor': '#6366f1' }}}%%
 graph TD
-    subgraph "Local Environment"
-        User([Developer / SRE]) -->|scenario run| CLI[Entropy CLI]
-        
-        subgraph "Entropy Engine"
-            CLI --> Discovery[Service Discovery]
-            CLI --> Runner[Scenario Runner]
-            CLI --> Safety[Graceful Rollback]
-        end
-        
-        Discovery -.->|analyzes| Compose[docker-compose.yml]
-        
-        subgraph "Target Infrastructure"
-            Runner -->|Docker API| API[Docker Engine API]
-            API -->|Resource Limits| C1[(Container A)]
-            API -->|Network Chaos| C2[(Container B)]
-            API -->|Lifecycle Actions| C3[(Container C)]
-        end
-        
-        Runner -->|HTTP/TCP/Exec| Probes{Health Probes}
-        Probes -.->|validate hypothesis| C1 & C2 & C3
+    User([Developer / SRE]) -->|scenario run| CLI[Entropy CLI]
+    
+    subgraph "Entropy Control Plane"
+        CLI --> Discovery[Context Discovery]
+        CLI --> Runner[Scenario Runner]
+        CLI --> Safety[Safety Rollback]
     end
+    
+    Discovery -.->|analyzes| Compose[docker-compose.yml]
+    
+    subgraph "Target Infrastructure"
+        Runner -->|Docker Engine API| API[API Engine]
+        API -->|Fault Injection| C1[(Service A)]
+        API -->|Resource Limits| C2[(Service B)]
+        API -->|Network Chaos| C3[(Service C)]
+    end
+    
+    Runner -->|HTTP/TCP/Exec| Probes{Health Probes}
+    Probes -.->|validate hypothesis| C1 & C2 & C3
     
     Safety -->|signal intercept| API
     API -->|revert all faults| C1 & C2 & C3
+
+    style CLI fill:#2563eb,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style Probes fill:#4f46e5,stroke:#6366f1,stroke-width:2px,color:#fff
+    style Safety fill:#dc2626,stroke:#ef4444,stroke-width:2px,color:#fff
 ```
 
 Future iterations will introduce `KubernetesClient` adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters.
