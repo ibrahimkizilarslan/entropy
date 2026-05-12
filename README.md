@@ -34,14 +34,16 @@ Entropy acts as the chaos injection layer for modern dev environments. By simula
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#1f2937',
-    'primaryTextColor': '#f3f4f6',
-    'primaryBorderColor': '#4b5563',
-    'lineColor': '#9ca3af',
-    'secondaryColor': '#1f2937',
-    'tertiaryColor': '#1f2937',
-    'mainBkg': '#111827',
-    'fontFamily': 'Inter, system-ui, sans-serif'
+    'primaryColor': '#000',
+    'primaryTextColor': '#fff',
+    'primaryBorderColor': '#fff',
+    'lineColor': '#fff',
+    'secondaryColor': '#000',
+    'tertiaryColor': '#000',
+    'mainBkg': '#000',
+    'clusterBkg': 'none',
+    'clusterBorder': 'none',
+    'fontFamily': 'monospace'
   }
 }}%%
 graph TD
@@ -68,9 +70,9 @@ graph TD
     Safety -->|signal intercept| API
     API -->|revert all faults| C1 & C2 & C3
 
-    %% Custom Styles to match screenshot minimalism
-    classDef default fill:#1f2937,stroke:#4b5563,color:#f3f4f6,stroke-width:1px;
-    classDef sub fill:none,stroke:#374151,color:#9ca3af,stroke-dasharray: 5 5;
+    %% Pure black and white styling
+    classDef default fill:#000,stroke:#fff,color:#fff,stroke-width:1px;
+    classDef sub fill:none,stroke:none,color:#fff;
     
     class User,CLI,Discovery,Runner,Safety,API,C1,C2,C3,Probes default;
 ```
