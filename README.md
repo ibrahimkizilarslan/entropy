@@ -25,7 +25,7 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 ## See it in action
 
 <!-- Replace the source below with your actual GIF recording once ready -->
-![Entropy Demo](https://raw.githubusercontent.com/ibrahimkizilarslan/entropy/main/docs/img/entropy-demo.gif)
+![Entropy Demo](./docs/img/entropy-demo.gif)
 
 ## Architecture & Vision
 
