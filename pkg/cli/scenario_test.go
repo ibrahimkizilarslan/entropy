@@ -118,7 +118,6 @@ steps:
 	}
 }
 
-
 func TestScenarioWithMultipleActions(t *testing.T) {
 	tmpDir := t.TempDir()
 	scenarioPath := filepath.Join(tmpDir, "multi-action.yaml")

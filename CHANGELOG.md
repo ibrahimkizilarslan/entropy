@@ -18,3 +18,4 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Updated `chaos.example.yaml` to reflect the latest supported action patterns.
 - Updated `chaos-scenario.example.yaml` to a runnable, fully English scenario example.
 
+
