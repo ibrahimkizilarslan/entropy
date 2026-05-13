@@ -11,7 +11,7 @@ func TestNewResourceChaosManager(t *testing.T) {
 	manager := engine.NewResourceChaosManager()
 
 	if manager == nil {
-		t.Error("NewResourceChaosManager returned nil")
+		t.Fatalf("NewResourceChaosManager returned nil")
 	}
 }
 

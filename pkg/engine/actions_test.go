@@ -10,11 +10,11 @@ func TestNewResourceChaosManager(t *testing.T) {
 	manager := NewResourceChaosManager()
 
 	if manager == nil {
-		t.Error("NewResourceChaosManager returned nil")
+		t.Fatalf("NewResourceChaosManager returned nil")
 	}
 
 	if manager.timers == nil {
-		t.Error("Manager timers map not initialized")
+		t.Fatalf("Manager timers map not initialized")
 	}
 
 	if len(manager.timers) != 0 {
