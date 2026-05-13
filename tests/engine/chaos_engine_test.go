@@ -22,14 +22,14 @@ func TestActionHandlersExist(t *testing.T) {
 }
 
 func TestNetworkActions(t *testing.T) {
-	// Test that network manager exists
+	// Test that network manager exists.
 	if engine.NetworkManager == nil {
 		t.Error("NetworkManager should not be nil")
 	}
 }
 
 func TestResourceActions(t *testing.T) {
-	// Test that resource manager exists
+	// Test that resource manager exists.
 	if engine.ResourceManager == nil {
 		t.Error("ResourceManager should not be nil")
 	}

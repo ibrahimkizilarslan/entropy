@@ -40,7 +40,7 @@ func TestStartCmdFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test flag parsing
+			// Test flag parsing.
 			for flag, value := range tt.flags {
 				if flag == "" || value == "" {
 					t.Error("Flag and value should not be empty")
@@ -54,7 +54,7 @@ func TestCreateValidChaosConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := tmpDir + "/test_chaos.yaml"
 
-	// Create a valid config file
+	// Create a valid config file.
 	configYAML := `interval: 10
 targets:
   - service-a
@@ -72,12 +72,12 @@ safety:
 		t.Fatalf("Failed to write config: %v", err)
 	}
 
-	// Verify the file was created
+	// Verify the file was created.
 	if _, err := os.Stat(configPath); err != nil {
 		t.Fatalf("Config file not created: %v", err)
 	}
 
-	// Load and verify
+	// Load and verify.
 	loaded, err := config.LoadConfig(configPath)
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
@@ -97,14 +97,14 @@ safety:
 }
 
 func TestStatusCommand(t *testing.T) {
-	// Clean state
+	// Clean state.
 	state := utils.NewStateManager("")
 	if err := state.Clear(); err != nil {
 		t.Logf("Warning: state.Clear failed: %v", err)
 	}
 
-	// Test status when no engine is running
-	// Should handle missing PID gracefully
+	// Test status when no engine is running.
+	// Should handle missing PID gracefully.
 	pid := state.RunningPID()
 	if pid != nil {
 		t.Errorf("Expected no running PID, got %d", *pid)
@@ -118,13 +118,13 @@ func TestLogsCommand(t *testing.T) {
 		t.Fatalf("Failed to ensure state dir: %v", err)
 	}
 
-	// Create a dummy log file
+	// Create a dummy log file.
 	logPath := state.LogFile()
 	if err := os.WriteFile(logPath, []byte("test log\n"), 0644); err != nil {
 		t.Fatalf("Failed to create log file: %v", err)
 	}
 
-	// Verify log file exists and is readable
+	// Verify log file exists and is readable.
 	content, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatalf("Failed to read log file: %v", err)
@@ -139,12 +139,12 @@ func TestCleanupCommand(t *testing.T) {
 	tmpDir := t.TempDir()
 	state := utils.NewStateManager(tmpDir)
 
-	// Ensure directory exists
+	// Ensure directory exists.
 	if err := state.EnsureDir(); err != nil {
 		t.Fatalf("Failed to ensure state dir: %v", err)
 	}
 
-	// Create state file
+	// Create state file.
 	testState := &utils.EngineState{
 		PID:        12345,
 		StartedAt:  time.Now(),
@@ -156,12 +156,12 @@ func TestCleanupCommand(t *testing.T) {
 		t.Fatalf("Failed to write state: %v", err)
 	}
 
-	// Clear should remove state file
+	// Clear should remove state file.
 	if err := state.Clear(); err != nil {
 		t.Fatalf("Failed to clear state: %v", err)
 	}
 
-	// Verify state is cleared
+	// Verify state is cleared.
 	pid := state.RunningPID()
 	if pid != nil {
 		t.Errorf("State not properly cleared, still has PID %d", *pid)

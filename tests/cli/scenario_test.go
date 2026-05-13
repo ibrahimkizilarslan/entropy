@@ -11,7 +11,7 @@ import (
 )
 
 func TestScenarioCommandStructure(t *testing.T) {
-	// Test scenario command properties
+	// Test scenario command properties.
 	if scenarioCmd.Name() != "scenario" {
 		t.Errorf("Command name = %q, want %q", scenarioCmd.Name(), "scenario")
 	}
@@ -46,7 +46,7 @@ func TestScenarioRunCommandArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test argument validation logic
+			// Test argument validation logic.
 			if len(tt.args) == 1 && tt.expectErr {
 				t.Error("Single argument should not error")
 			}
@@ -58,7 +58,7 @@ func TestCreateValidScenario(t *testing.T) {
 	tmpDir := t.TempDir()
 	scenarioPath := filepath.Join(tmpDir, "test-scenario.yaml")
 
-	// Create a valid scenario
+	// Create a valid scenario.
 	scenarioContent := `
 name: "Test Scenario"
 description: "A test scenario"
@@ -96,12 +96,12 @@ steps:
 		t.Fatalf("Failed to create scenario file: %v", err)
 	}
 
-	// Verify file exists
+	// Verify file exists.
 	if _, err := os.Stat(scenarioPath); err != nil {
 		t.Fatalf("Scenario file not found: %v", err)
 	}
 
-	// Load scenario
+	// Load scenario.
 	scenario, err := config.LoadScenario(scenarioPath)
 	if err != nil {
 		t.Fatalf("Failed to load scenario: %v", err)
@@ -172,7 +172,7 @@ steps:
 	}
 }
 
-// Define scenarioCmd for testing purposes
+// Define scenarioCmd for testing purposes.
 var scenarioCmd = &cobra.Command{
 	Use:   "scenario",
 	Short: "Run deterministic chaos scenarios",

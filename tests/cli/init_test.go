@@ -15,13 +15,17 @@ func TestInitCommandWithoutCompose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get current directory: %v", err)
 	}
-	defer os.Chdir(oldCwd)
+	defer func() {
+		if err := os.Chdir(oldCwd); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
 
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
 
-	// Should fail when docker-compose.yml doesn't exist
+	// Should fail when docker-compose.yml doesn't exist.
 	_, _, err = engine.DiscoverComposeServices(".")
 	if err == nil {
 		t.Error("Expected error when docker-compose.yml not found")
@@ -51,7 +55,11 @@ services:
 	if err != nil {
 		t.Fatalf("Failed to get current directory: %v", err)
 	}
-	defer os.Chdir(oldCwd)
+	defer func() {
+		if err := os.Chdir(oldCwd); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
 
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
@@ -104,7 +112,7 @@ func TestInitCommandForceFlag(t *testing.T) {
 	}
 
 	// Simulation of 'init' logic: 
-	// If file exists and force is false, it should fail (in CLI it exits, here we check logic)
+	// If file exists and force is false, it should fail (in CLI it exits, here we check logic).
 	force := false
 	if _, err := os.Stat(chaosPath); err == nil && !force {
 		// Expected behavior
@@ -118,7 +126,7 @@ func TestInitCommandForceFlag(t *testing.T) {
 		t.Error("Logic should allow proceeding when force is true")
 	}
 
-	// Verify initial file still exists (we didn't actually overwrite in this test yet)
+	// Verify initial file still exists (we didn't actually overwrite in this test yet).
 	if _, err := os.Stat(chaosPath); err != nil {
 		t.Fatalf("Initial chaos.yaml missing: %v", err)
 	}
