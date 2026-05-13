@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -213,8 +213,8 @@ func (e *ChaosEngine) runCycle(runtime ContainerRuntime) {
 		return
 	}
 
-	target := available[rand.IntN(len(available))]
-	actionSpec := e.config.Actions[rand.IntN(len(e.config.Actions))]
+	target := available[rand.Intn(len(available))]
+	actionSpec := e.config.Actions[rand.Intn(len(e.config.Actions))]
 	actionName := e.formatActionName(actionSpec)
 
 	event := e.execute(runtime, actionSpec, target, actionName)

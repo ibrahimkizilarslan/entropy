@@ -32,7 +32,7 @@ var dockerListCmd = &cobra.Command{
 		}
 
 		tableData := pterm.TableData{
-			{"ID", "Name", "Image", "Status", "Ports"},
+			[]string{"ID", "Name", "Image", "Status", "Ports"},
 		}
 
 		for _, c := range containers {

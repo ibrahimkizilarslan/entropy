@@ -53,7 +53,7 @@ func DiscoverK8sTargets(namespace string) ([]string, string, error) {
 	}
 
 	var targets []string
-	
+
 	// Get Deployments
 	deps, err := clientset.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
 	if err == nil {
@@ -78,7 +78,7 @@ func DiscoverK8sTargets(namespace string) ([]string, string, error) {
 			}
 		}
 	}
-	
+
 	// Deduplicate targets
 	targetMap := make(map[string]bool)
 	var uniqueTargets []string

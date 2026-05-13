@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 func TestActionSpec_IsNetwork(t *testing.T) {

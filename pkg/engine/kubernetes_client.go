@@ -238,7 +238,7 @@ func (k *KubernetesClient) InjectNetworkDelay(target string, latencyMs int, jitt
 	// Wait for container to be running
 	// Normally we'd watch, but for simplicity we assume it starts quickly.
 	// Actually, we can just attempt to exec the tc command in a retry loop.
-	
+
 	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", fmt.Sprintf("%dms", latencyMs)}
 	if jitterMs > 0 {
 		cmd = append(cmd, fmt.Sprintf("%dms", jitterMs))

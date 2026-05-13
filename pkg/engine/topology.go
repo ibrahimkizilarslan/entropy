@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	"github.com/pterm/pterm"
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type TopologyNode struct {

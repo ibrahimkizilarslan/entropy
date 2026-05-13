@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 
-
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"

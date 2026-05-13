@@ -20,9 +20,9 @@ type ScenarioResult struct {
 }
 
 type ScenarioRunner struct {
-	config  *config.ScenarioConfig
-	logCb   func(string)
-	runtime ContainerRuntime
+	config      *config.ScenarioConfig
+	logCb       func(string)
+	runtime     ContainerRuntime
 	stopped     []string
 	paused      []string
 	runtimeType string

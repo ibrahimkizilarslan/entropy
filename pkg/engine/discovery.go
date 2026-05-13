@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type composeConfig struct {
