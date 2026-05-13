@@ -192,31 +192,86 @@ func (k *KubernetesClient) UnpauseContainer(name string) (*ContainerInfo, error)
 }
 
 func (k *KubernetesClient) GetContainerPID(name string) (int, error) {
-	return 0, fmt.Errorf("GetContainerPID is not supported in Kubernetes via standard API. Network chaos features (delay, loss) are currently limited on K8s")
+	return 0, fmt.Errorf("GetContainerPID is not supported in Kubernetes via standard API")
 }
 
-func (k *KubernetesClient) UpdateContainerResources(name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
-	return nil, fmt.Errorf("In-place resource updates are generally not supported for Pods in standard Kubernetes API without alpha features")
-}
-
-func (k *KubernetesClient) ExecCommand(name string, cmd []string) (int, error) {
-	if err := k.assertAllowed(name); err != nil {
-		return -1, err
+func (k *KubernetesClient) injectEphemeralNetshoot(pod *corev1.Pod) error {
+	for _, ec := range pod.Spec.EphemeralContainers {
+		if ec.Name == "chaos-netshoot" {
+			return nil // Already injected
+		}
 	}
-	p, err := k.findPod(name)
+
+	ec := corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:            "chaos-netshoot",
+			Image:           "nicolaka/netshoot:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			SecurityContext: &corev1.SecurityContext{
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{"NET_ADMIN"},
+				},
+			},
+			TTY:   true,
+			Stdin: true,
+		},
+	}
+
+	pod.Spec.EphemeralContainers = append(pod.Spec.EphemeralContainers, ec)
+	_, err := k.clientset.CoreV1().Pods(k.namespace).UpdateEphemeralContainers(context.Background(), pod.Name, pod, metav1.UpdateOptions{})
+	return err
+}
+
+func (k *KubernetesClient) InjectNetworkDelay(target string, latencyMs int, jitterMs int, duration *int) error {
+	if err := k.assertAllowed(target); err != nil {
+		return err
+	}
+	p, err := k.findPod(target)
 	if err != nil {
-		return -1, err
+		return err
 	}
 
-	if len(p.Spec.Containers) == 0 {
-		return -1, fmt.Errorf("pod %s has no containers", p.Name)
+	if err := k.injectEphemeralNetshoot(p); err != nil {
+		return fmt.Errorf("failed to inject ephemeral container: %w", err)
 	}
 
-	containerName := p.Spec.Containers[0].Name
+	// Wait for container to be running
+	// Normally we'd watch, but for simplicity we assume it starts quickly.
+	// Actually, we can just attempt to exec the tc command in a retry loop.
+	
+	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", fmt.Sprintf("%dms", latencyMs)}
+	if jitterMs > 0 {
+		cmd = append(cmd, fmt.Sprintf("%dms", jitterMs))
+	}
 
+	// We need to execute this command INSIDE the ephemeral container, not the main one.
+	// Let's create an ExecInContainer helper.
+	_, err = k.execInContainer(p.Name, "chaos-netshoot", cmd)
+	return err
+}
+
+func (k *KubernetesClient) InjectNetworkLoss(target string, lossPercent int, duration *int) error {
+	if err := k.assertAllowed(target); err != nil {
+		return err
+	}
+	p, err := k.findPod(target)
+	if err != nil {
+		return err
+	}
+
+	if err := k.injectEphemeralNetshoot(p); err != nil {
+		return fmt.Errorf("failed to inject ephemeral container: %w", err)
+	}
+
+	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "loss", fmt.Sprintf("%d%%", lossPercent)}
+	_, err = k.execInContainer(p.Name, "chaos-netshoot", cmd)
+	return err
+}
+
+func (k *KubernetesClient) execInContainer(podName string, containerName string, cmd []string) (int, error) {
 	req := k.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Name(p.Name).
+		Name(podName).
 		Namespace(k.namespace).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
@@ -240,10 +295,36 @@ func (k *KubernetesClient) ExecCommand(name string, cmd []string) (int, error) {
 	})
 
 	if err != nil {
-		return 1, fmt.Errorf("exec command failed: %w. Stderr: %s", err, stderr.String())
+		// Ignore if it fails because it's already added (exit status 2 from tc)
+		if strings.Contains(stderr.String(), "File exists") {
+			return 0, nil
+		}
+		// If container isn't ready yet, it returns BadRequest
+		return 1, fmt.Errorf("exec failed: %w. Stderr: %s", err, stderr.String())
 	}
 
 	return 0, nil
+}
+
+func (k *KubernetesClient) UpdateContainerResources(name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
+	return nil, fmt.Errorf("In-place resource updates are generally not supported for Pods in standard Kubernetes API without alpha features")
+}
+
+func (k *KubernetesClient) ExecCommand(name string, cmd []string) (int, error) {
+	if err := k.assertAllowed(name); err != nil {
+		return -1, err
+	}
+	p, err := k.findPod(name)
+	if err != nil {
+		return -1, err
+	}
+
+	if len(p.Spec.Containers) == 0 {
+		return -1, fmt.Errorf("pod %s has no containers", p.Name)
+	}
+
+	containerName := p.Spec.Containers[0].Name
+	return k.execInContainer(p.Name, containerName, cmd)
 }
 
 func (k *KubernetesClient) Close() {

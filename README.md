@@ -9,9 +9,9 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
 [![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy)](https://github.com/ibrahimkizilarslan/entropy/releases)
 
-Entropy is a **developer-first chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
+Entropy is a **developer-first, platform-agnostic chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
-Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code ever reaches production.
+Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios. From local `docker-compose` topologies to production Kubernetes clusters, Entropy provides a seamless experience without requiring heavy agent installations.
 
 ## See it in action
 
@@ -19,16 +19,20 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 
 ## Core Capabilities
 
-- **Smart Context Discovery:** Zero-configuration setup. Automatically detects Docker Desktop, native Linux sockets, and `docker-compose.yml` topologies to map your system instantly.
+- **Platform Agnostic (Docker & Kubernetes):** Use a single CLI flag (`--runtime=kubernetes`) to seamlessly transition from your local laptop to staging clusters.
+- **Agentless Architecture (K8s):** Entropy uses modern **Ephemeral Containers** (`nicolaka/netshoot`) to inject chaos directly into target Pods. No DaemonSets, no node-level agents, zero footprint left behind.
+- **Smart Context Discovery:** Zero-configuration setup. Automatically detects Kubernetes namespaces, `Deployment`s, `StatefulSet`s, Docker Desktop, and `docker-compose.yml` topologies to map your system instantly.
+- **Enterprise Resilience Doctor:** Analyze your topology for Single Points of Failure (SPOF), missing resource limits, missing probes, and privileged containers using `entropy doctor`.
 - **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
-- **Multi-Protocol Probes (NEW!):** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker Exec probes** to run raw shell commands (like `redis-cli ping`) inside containers.
-- **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes CPU limits) leaving your system pristine.
-- **Resource Constraints:** Dynamically enforce CPU quotas and Memory limits on active containers.
+- **Multi-Protocol Probes:** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker/K8s Exec probes** to run raw shell commands inside containers.
+- **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes ephemeral containers) leaving your system pristine.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
 ## Architecture & Vision
 
-Entropy acts as the chaos injection layer for modern dev environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation) locally, developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
+Entropy acts as the chaos injection layer for modern dev and staging environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation), developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
+
+Our vision is to provide a truly **agentless** experience. In Kubernetes, this means leveraging **Ephemeral Containers** to dynamically attach networking utilities (like `tc`) to target Pods exactly when needed, entirely eliminating the security risks and resource overhead of traditional DaemonSet-based chaos tools.
 
 ```mermaid
 %%{init: {
@@ -59,9 +63,9 @@ graph TD
     
     subgraph "Target Infrastructure"
         Runner -->|Docker Engine API| API[API Engine]
-        API -->|Fault Injection| C1[(Service A)]
-        API -->|Resource Limits| C2[(Service B)]
-        API -->|Network Chaos| C3[(Service C)]
+        API -->|Fault Injection| C1[(Service A / Pod A)]
+        API -->|Resource Limits| C2[(Service B / Pod B)]
+        API -->|Agentless Network Chaos| C3[(Service C / Pod C)]
     end
     
     Runner -->|HTTP/TCP/Exec| Probes{Health Probes}
@@ -77,7 +81,7 @@ graph TD
     class User,CLI,Discovery,Runner,Safety,API,C1,C2,C3,Probes default;
 ```
 
-Future iterations will introduce `KubernetesClient` adapters, allowing the exact same scenario configurations to seamlessly transition from a developer's laptop to staging clusters.
+The engine abstracts the underlying runtime via a `ContainerRuntime` factory, meaning the exact same `chaos.yaml` scenario definitions run flawlessly whether you are targeting a local `docker-compose` stack or a remote Kubernetes cluster.
 
 
 ## Installation
@@ -167,8 +171,8 @@ Usage:
 Available Commands:
   cleanup     Emergency cleanup: revert all active faults
   docker      Docker utility commands
-  doctor      Analyze your docker-compose topology for enterprise resilience and anti-patterns
-  init        Auto-discover docker-compose.yml and generate a chaos.yaml file
+  doctor      Analyze your topology (docker-compose or kubernetes) for enterprise resilience and anti-patterns
+  init        Auto-discover targets (docker-compose or kubernetes) and generate a chaos.yaml file
   inject      Manually inject a single chaos action into a target container
   logs        Stream the logs generated by the background chaos engine
   scenario    Run deterministic chaos scenarios

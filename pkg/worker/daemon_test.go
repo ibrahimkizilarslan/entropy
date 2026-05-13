@@ -56,7 +56,7 @@ func TestRunDaemonWithInvalidConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config is invalid
-	err := RunDaemon(configPath, &dryRun, &maxDown, &cooldown)
+	err := RunDaemon(configPath, "docker", &dryRun, &maxDown, &cooldown)
 	if err == nil {
 		t.Error("Expected error when loading invalid config")
 	}
@@ -124,7 +124,7 @@ func TestRunDaemonWithMissingConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config file doesn't exist
-	err := RunDaemon(nonExistentPath, &dryRun, &maxDown, &cooldown)
+	err := RunDaemon(nonExistentPath, "docker", &dryRun, &maxDown, &cooldown)
 	if err == nil {
 		t.Error("Expected error when config file is missing")
 	}

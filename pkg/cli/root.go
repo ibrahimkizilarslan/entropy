@@ -15,6 +15,12 @@ var rootCmd = &cobra.Command{
 By prioritizing the developer workflow, Entropy enables teams to validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code reaches production.`,
 }
 
+var runtimeType string
+
+func init() {
+	rootCmd.PersistentFlags().StringVar(&runtimeType, "runtime", "docker", "Container runtime to use (docker, kubernetes)")
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {

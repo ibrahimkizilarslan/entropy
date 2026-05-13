@@ -36,7 +36,7 @@ var scenarioRunCmd = &cobra.Command{
 		}
 
 		pterm.Println()
-		runner := engine.NewScenarioRunner(cfg, func(msg string) {
+		runner := engine.NewScenarioRunner(cfg, runtimeType, func(msg string) {
 			pterm.Printf("  %s\n", msg)
 		})
 

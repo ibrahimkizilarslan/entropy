@@ -11,7 +11,7 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
-func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) error {
+func RunDaemon(configPath string, runtimeType string, dryRun *bool, maxDown *int, cooldown *int) error {
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func RunDaemon(configPath string, dryRun *bool, maxDown *int, cooldown *int) err
 		})
 	}
 
-	chaosEngine = engine.NewChaosEngine(cfg, onEvent, logger)
+	chaosEngine = engine.NewChaosEngine(cfg, runtimeType, onEvent, logger)
 
 	_ = state.Write(&utils.EngineState{
 		PID:               myPid,

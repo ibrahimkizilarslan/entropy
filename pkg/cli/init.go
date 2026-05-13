@@ -10,7 +10,7 @@ import (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Auto-discover docker-compose.yml and generate a chaos.yaml file",
+	Short: "Auto-discover targets (docker-compose or kubernetes) and generate a chaos.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
 		force, _ := cmd.Flags().GetBool("force")
 
@@ -20,7 +20,16 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		services, foundPath, err := engine.DiscoverComposeServices(".")
+		var services []string
+		var foundPath string
+		var err error
+
+		if runtimeType == "kubernetes" || runtimeType == "k8s" {
+			services, foundPath, err = engine.DiscoverK8sTargets("")
+		} else {
+			services, foundPath, err = engine.DiscoverComposeServices(".")
+		}
+
 		if err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)

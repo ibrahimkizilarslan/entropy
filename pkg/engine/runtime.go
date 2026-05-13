@@ -19,6 +19,8 @@ type ContainerRuntime interface {
 	UnpauseContainer(name string) (*ContainerInfo, error)
 	GetContainerPID(name string) (int, error)
 	UpdateContainerResources(name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error)
+	InjectNetworkDelay(target string, latencyMs int, jitterMs int, duration *int) error
+	InjectNetworkLoss(target string, lossPercent int, duration *int) error
 	ExecCommand(name string, cmd []string) (int, error)
 	ListContainers(all bool) ([]ContainerInfo, error)
 	Close()

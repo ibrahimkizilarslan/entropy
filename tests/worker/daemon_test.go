@@ -37,7 +37,7 @@ safety:
 	// Run daemon in a goroutine
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- worker.RunDaemon(configPath, &dryRun, &maxDown, &cooldown)
+		errCh <- worker.RunDaemon(configPath, "docker", &dryRun, &maxDown, &cooldown)
 	}()
 
 	// Wait a bit for initialization
@@ -78,7 +78,7 @@ func TestRunDaemonWithInvalidConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config is invalid
-	err := worker.RunDaemon(configPath, &dryRun, &maxDown, &cooldown)
+	err := worker.RunDaemon(configPath, "docker", &dryRun, &maxDown, &cooldown)
 	if err == nil {
 		t.Error("Expected error when loading invalid config")
 	}
@@ -146,7 +146,7 @@ func TestRunDaemonWithMissingConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config file doesn't exist
-	err := worker.RunDaemon(nonExistentPath, &dryRun, &maxDown, &cooldown)
+	err := worker.RunDaemon(nonExistentPath, "docker", &dryRun, &maxDown, &cooldown)
 	if err == nil {
 		t.Error("Expected error when config file is missing")
 	}

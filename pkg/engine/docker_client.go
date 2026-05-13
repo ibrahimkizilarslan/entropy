@@ -353,6 +353,22 @@ func (d *DockerClient) ExecCommand(name string, cmd []string) (int, error) {
 	return -1, fmt.Errorf("timeout waiting for exec command to complete in container %s", name)
 }
 
+func (d *DockerClient) InjectNetworkDelay(target string, latencyMs int, jitterMs int, duration *int) error {
+	pid, err := d.GetContainerPID(target)
+	if err != nil {
+		return err
+	}
+	return NetworkManager.InjectDelay(target, pid, latencyMs, jitterMs, duration)
+}
+
+func (d *DockerClient) InjectNetworkLoss(target string, lossPercent int, duration *int) error {
+	pid, err := d.GetContainerPID(target)
+	if err != nil {
+		return err
+	}
+	return NetworkManager.InjectLoss(target, pid, lossPercent, duration)
+}
+
 func (d *DockerClient) Close() {
 	d.cli.Close()
 }

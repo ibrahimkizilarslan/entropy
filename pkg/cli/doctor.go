@@ -11,20 +11,27 @@ import (
 
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
-	Short: "Analyze your docker-compose topology for enterprise resilience and anti-patterns",
+	Short: "Analyze your topology (docker-compose or kubernetes) for enterprise resilience and anti-patterns",
 	Long: `Doctor scans your local docker-compose configuration and analyzes it against 
 enterprise-level resilience rules (SPOF, Resource Limits, Recovery, Observability, Security).
 It helps you identify weak points before running chaos experiments.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pterm.Info.Println("Starting Entropy Doctor analysis...")
 
-		cwd, err := os.Getwd()
-		if err != nil {
-			pterm.Error.Printf("Failed to get current directory: %v\n", err)
-			return
+		var results []engine.DoctorResult
+		var err error
+
+		if runtimeType == "kubernetes" || runtimeType == "k8s" {
+			results, err = engine.AnalyzeK8sTopology("")
+		} else {
+			cwd, pwdErr := os.Getwd()
+			if pwdErr != nil {
+				pterm.Error.Printf("Failed to get current directory: %v\n", pwdErr)
+				return
+			}
+			results, err = engine.AnalyzeTopology(cwd)
 		}
 
-		results, err := engine.AnalyzeTopology(cwd)
 		if err != nil {
 			pterm.Error.Printf("Analysis failed: %v\n", err)
 			return

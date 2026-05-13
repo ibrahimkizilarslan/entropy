@@ -74,24 +74,14 @@ func actionPause(client ContainerRuntime, target string, spec config.ActionSpec)
 }
 
 func actionDelay(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	pid, err := client.GetContainerPID(target)
-	if err != nil {
+	if err := client.InjectNetworkDelay(target, spec.LatencyMs, spec.JitterMs, spec.Duration); err != nil {
 		return nil, err
 	}
-	if err := NetworkManager.InjectDelay(target, pid, spec.LatencyMs, spec.JitterMs, spec.Duration); err != nil {
-		return nil, err
-	}
-	// For network chaos, we just return empty info since ContainerInfo isn't strictly needed 
-	// or we can fetch it. For now, returning empty is safe for the CLI output.
 	return &ContainerInfo{Name: target, Status: "running (delayed)"}, nil
 }
 
 func actionLoss(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	pid, err := client.GetContainerPID(target)
-	if err != nil {
-		return nil, err
-	}
-	if err := NetworkManager.InjectLoss(target, pid, spec.LossPercent, spec.Duration); err != nil {
+	if err := client.InjectNetworkLoss(target, spec.LossPercent, spec.Duration); err != nil {
 		return nil, err
 	}
 	return &ContainerInfo{Name: target, Status: "running (lossy)"}, nil

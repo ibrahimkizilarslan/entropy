@@ -34,15 +34,17 @@ type ChaosEngine struct {
 	lastEvent         *utils.EventRecord
 	history           []utils.EventRecord
 	lastInjectionTime time.Time
+	runtimeType       string
 }
 
-func NewChaosEngine(cfg *config.ChaosConfig, onEvent func(utils.EventRecord), logger *utils.ChaosLogger) *ChaosEngine {
+func NewChaosEngine(cfg *config.ChaosConfig, runtimeType string, onEvent func(utils.EventRecord), logger *utils.ChaosLogger) *ChaosEngine {
 	return &ChaosEngine{
-		config:    cfg,
-		onEvent:   onEvent,
-		logger:    logger,
-		downSet:   make(map[string]bool),
-		stopEvent: make(chan struct{}),
+		config:      cfg,
+		runtimeType: runtimeType,
+		onEvent:     onEvent,
+		logger:      logger,
+		downSet:     make(map[string]bool),
+		stopEvent:   make(chan struct{}),
 	}
 }
 
@@ -108,7 +110,7 @@ func (e *ChaosEngine) runLoop() {
 		e.logger.LogStart(e.config)
 	}
 
-	runtime, err := NewDockerClient(e.config.Targets)
+	runtime, err := GetRuntime(e.runtimeType, e.config.Targets)
 	if err == nil {
 		defer runtime.Close()
 	}

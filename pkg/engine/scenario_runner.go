@@ -23,17 +23,19 @@ type ScenarioRunner struct {
 	config  *config.ScenarioConfig
 	logCb   func(string)
 	runtime ContainerRuntime
-	stopped []string
-	paused  []string
+	stopped     []string
+	paused      []string
+	runtimeType string
 }
 
-func NewScenarioRunner(cfg *config.ScenarioConfig, logCb func(string)) *ScenarioRunner {
+func NewScenarioRunner(cfg *config.ScenarioConfig, runtimeType string, logCb func(string)) *ScenarioRunner {
 	if logCb == nil {
 		logCb = func(string) {}
 	}
 	return &ScenarioRunner{
-		config: cfg,
-		logCb:  logCb,
+		config:      cfg,
+		logCb:       logCb,
+		runtimeType: runtimeType,
 	}
 }
 
@@ -48,7 +50,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 		r.logCb(fmt.Sprintf("Hypothesis: %s", r.config.Hypothesis))
 	}
 
-	dc, err := NewDockerClient(nil)
+	dc, err := GetRuntime(r.runtimeType, nil)
 	if err != nil {
 		res.Success = false
 		res.Error = fmt.Sprintf("failed to connect to docker: %v", err)

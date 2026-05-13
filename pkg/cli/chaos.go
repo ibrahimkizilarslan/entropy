@@ -49,7 +49,7 @@ var startCmd = &cobra.Command{
 		if detach {
 			_ = state.EnsureDir()
 
-			cmdArgs := []string{"run-worker", "--config", configPath, "--max-down", fmt.Sprintf("%d", cfg.Safety.MaxDown), "--cooldown", fmt.Sprintf("%d", cfg.Safety.Cooldown)}
+			cmdArgs := []string{"run-worker", "--config", configPath, "--max-down", fmt.Sprintf("%d", cfg.Safety.MaxDown), "--cooldown", fmt.Sprintf("%d", cfg.Safety.Cooldown), "--runtime", runtimeType}
 			if cfg.Safety.DryRun {
 				cmdArgs = append(cmdArgs, "--dry-run")
 			}
@@ -75,7 +75,7 @@ var startCmd = &cobra.Command{
 			dryRunOpt := cfg.Safety.DryRun
 			maxDownOpt := cfg.Safety.MaxDown
 			cooldownOpt := cfg.Safety.Cooldown
-			if err := worker.RunDaemon(configPath, &dryRunOpt, &maxDownOpt, &cooldownOpt); err != nil {
+			if err := worker.RunDaemon(configPath, runtimeType, &dryRunOpt, &maxDownOpt, &cooldownOpt); err != nil {
 				pterm.Error.Println(err)
 				os.Exit(1)
 			}
@@ -173,7 +173,7 @@ var injectCmd = &cobra.Command{
 			}
 		}
 
-		dc, err := engine.NewDockerClient(allowedTargets)
+		dc, err := engine.GetRuntime(runtimeType, allowedTargets)
 		if err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)
