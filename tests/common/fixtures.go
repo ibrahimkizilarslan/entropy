@@ -1,9 +1,9 @@
 package common
 
-// ConfigFixtures contains common configuration YAML strings for testing
+// ConfigFixtures contains common configuration YAML strings for testing.
 type ConfigFixtures struct{}
 
-// ValidChaosConfig returns a valid chaos configuration YAML string
+// ValidChaosConfig returns a valid chaos configuration YAML string.
 func (cf *ConfigFixtures) ValidChaosConfig() string {
 	return `interval: 10
 targets:
@@ -19,7 +19,7 @@ safety:
 `
 }
 
-// MinimalChaosConfig returns a minimal valid chaos configuration
+// MinimalChaosConfig returns a minimal valid chaos configuration.
 func (cf *ConfigFixtures) MinimalChaosConfig() string {
 	return `interval: 5
 targets:
@@ -33,12 +33,12 @@ safety:
 `
 }
 
-// InvalidChaosConfig returns an invalid chaos configuration
+// InvalidChaosConfig returns an invalid chaos configuration.
 func (cf *ConfigFixtures) InvalidChaosConfig() string {
 	return `invalid: yaml: content: [`
 }
 
-// NoTargetsConfig returns a config with no targets
+// NoTargetsConfig returns a config with no targets.
 func (cf *ConfigFixtures) NoTargetsConfig() string {
 	return `interval: 10
 targets: []
@@ -51,7 +51,7 @@ safety:
 `
 }
 
-// ZeroIntervalConfig returns a config with zero interval
+// ZeroIntervalConfig returns a config with zero interval.
 func (cf *ConfigFixtures) ZeroIntervalConfig() string {
 	return `interval: 0
 targets:
@@ -65,10 +65,10 @@ safety:
 `
 }
 
-// ScenarioFixtures contains common scenario YAML strings for testing
+// ScenarioFixtures contains common scenario YAML strings for testing.
 type ScenarioFixtures struct{}
 
-// BasicScenario returns a basic scenario YAML string
+// BasicScenario returns a basic scenario YAML string.
 func (sf *ScenarioFixtures) BasicScenario() string {
 	return `name: "Basic Test Scenario"
 description: "A basic test scenario"
@@ -92,7 +92,7 @@ steps:
 `
 }
 
-// MultiStepScenario returns a scenario with multiple steps
+// MultiStepScenario returns a scenario with multiple steps.
 func (sf *ScenarioFixtures) MultiStepScenario() string {
 	return `name: "Multi-Step Scenario"
 description: "Test multiple chaos actions"
@@ -118,10 +118,10 @@ steps:
 `
 }
 
-// ComposerFixtures contains docker-compose related test fixtures
+// ComposeFixtures contains docker-compose related test fixtures.
 type ComposeFixtures struct{}
 
-// BasicDockerCompose returns a minimal docker-compose.yml content
+// BasicDockerCompose returns a minimal docker-compose.yml content.
 func (cf *ComposeFixtures) BasicDockerCompose() string {
 	return `version: '3'
 services:
@@ -134,7 +134,7 @@ services:
 `
 }
 
-// ComplexDockerCompose returns a more complex docker-compose.yml
+// ComplexDockerCompose returns a more complex docker-compose.yml.
 func (cf *ComposeFixtures) ComplexDockerCompose() string {
 	return `version: '3.8'
 services:

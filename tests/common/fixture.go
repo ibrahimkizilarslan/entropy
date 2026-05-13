@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-// TestFixture provides common test utilities and test data generators
+// TestFixture provides common test utilities and test data generators.
 type TestFixture struct {
 	tmpDir string
 	t      *testing.T
 }
 
-// NewTestFixture creates a new test fixture with a temporary directory
+// NewTestFixture creates a new test fixture with a temporary directory.
 func NewTestFixture(t *testing.T) *TestFixture {
 	tmpDir := t.TempDir()
 	return &TestFixture{
@@ -21,12 +21,12 @@ func NewTestFixture(t *testing.T) *TestFixture {
 	}
 }
 
-// TempDir returns the temporary directory path
+// TempDir returns the temporary directory path.
 func (tf *TestFixture) TempDir() string {
 	return tf.tmpDir
 }
 
-// CreateFile creates a file in the temporary directory with the given content
+// CreateFile creates a file in the temporary directory with the given content.
 func (tf *TestFixture) CreateFile(filename string, content []byte) string {
 	filePath := filepath.Join(tf.tmpDir, filename)
 
@@ -43,7 +43,7 @@ func (tf *TestFixture) CreateFile(filename string, content []byte) string {
 	return filePath
 }
 
-// CreateDirectory creates a directory in the temporary directory
+// CreateDirectory creates a directory in the temporary directory.
 func (tf *TestFixture) CreateDirectory(dirname string) string {
 	dirPath := filepath.Join(tf.tmpDir, dirname)
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
@@ -52,7 +52,7 @@ func (tf *TestFixture) CreateDirectory(dirname string) string {
 	return dirPath
 }
 
-// ReadFile reads a file from the temporary directory
+// ReadFile reads a file from the temporary directory.
 func (tf *TestFixture) ReadFile(filename string) []byte {
 	filePath := filepath.Join(tf.tmpDir, filename)
 	content, err := os.ReadFile(filePath)
@@ -62,7 +62,7 @@ func (tf *TestFixture) ReadFile(filename string) []byte {
 	return content
 }
 
-// FileExists checks if a file exists in the temporary directory
+// FileExists checks if a file exists in the temporary directory.
 func (tf *TestFixture) FileExists(filename string) bool {
 	filePath := filepath.Join(tf.tmpDir, filename)
 	_, err := os.Stat(filePath)

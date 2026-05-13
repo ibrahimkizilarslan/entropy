@@ -44,8 +44,13 @@ safety:
 	time.Sleep(100 * time.Millisecond)
 
 	// Send interrupt signal to our own process to stop the daemon
-	p, _ := os.FindProcess(os.Getpid())
-	_ = p.Signal(os.Interrupt)
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		t.Fatalf("Failed to find own process: %v", err)
+	}
+	if err := p.Signal(os.Interrupt); err != nil {
+		t.Fatalf("Failed to send signal: %v", err)
+	}
 
 	// Wait for daemon to exit
 	select {

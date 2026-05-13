@@ -99,7 +99,9 @@ safety:
 func TestStatusCommand(t *testing.T) {
 	// Clean state
 	state := utils.NewStateManager("")
-	_ = state.Clear()
+	if err := state.Clear(); err != nil {
+		t.Logf("Warning: state.Clear failed: %v", err)
+	}
 
 	// Test status when no engine is running
 	// Should handle missing PID gracefully
@@ -112,7 +114,9 @@ func TestStatusCommand(t *testing.T) {
 func TestLogsCommand(t *testing.T) {
 	tmpDir := t.TempDir()
 	state := utils.NewStateManager(tmpDir)
-	_ = state.EnsureDir()
+	if err := state.EnsureDir(); err != nil {
+		t.Fatalf("Failed to ensure state dir: %v", err)
+	}
 
 	// Create a dummy log file
 	logPath := state.LogFile()
@@ -136,7 +140,9 @@ func TestCleanupCommand(t *testing.T) {
 	state := utils.NewStateManager(tmpDir)
 
 	// Ensure directory exists
-	_ = state.EnsureDir()
+	if err := state.EnsureDir(); err != nil {
+		t.Fatalf("Failed to ensure state dir: %v", err)
+	}
 
 	// Create state file
 	testState := &utils.EngineState{

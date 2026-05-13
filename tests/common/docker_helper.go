@@ -9,12 +9,12 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// DockerHelper provides utility methods for interacting with Docker in tests
+// DockerHelper provides utility methods for interacting with Docker in tests.
 type DockerHelper struct {
 	cli *client.Client
 }
 
-// NewDockerHelper creates a new DockerHelper
+// NewDockerHelper creates a new DockerHelper.
 func NewDockerHelper() (*DockerHelper, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -23,7 +23,7 @@ func NewDockerHelper() (*DockerHelper, error) {
 	return &DockerHelper{cli: cli}, nil
 }
 
-// IsContainerRunning checks if a container with the given name is running
+// IsContainerRunning checks if a container with the given name is running.
 func (h *DockerHelper) IsContainerRunning(name string) (bool, error) {
 	containers, err := h.cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
@@ -40,7 +40,7 @@ func (h *DockerHelper) IsContainerRunning(name string) (bool, error) {
 	return false, fmt.Errorf("container %s not found", name)
 }
 
-// GetContainerStatus returns the status of a container
+// GetContainerStatus returns the status of a container.
 func (h *DockerHelper) GetContainerStatus(name string) (string, error) {
 	containers, err := h.cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
@@ -57,7 +57,7 @@ func (h *DockerHelper) GetContainerStatus(name string) (string, error) {
 	return "", fmt.Errorf("container %s not found", name)
 }
 
-// Close closes the docker client
+// Close closes the docker client.
 func (h *DockerHelper) Close() {
 	if h.cli != nil {
 		h.cli.Close()

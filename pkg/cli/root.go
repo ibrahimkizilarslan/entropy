@@ -23,7 +23,7 @@ func Execute() {
 	}
 }
 
-// GetRootCommand returns the root cobra command for testing
+// GetRootCommand returns the root cobra command for testing.
 func GetRootCommand() *cobra.Command {
 	return rootCmd
 }
