@@ -12,6 +12,8 @@ dist/
 *.dylib
 *.test
 *.out
+coverage.txt
+coverage.out
 vendor/
 go.work
 
