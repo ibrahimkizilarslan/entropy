@@ -3,47 +3,30 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Trigger on tags starting with v (e.g., v1.0.0)
 
 permissions:
-  contents: write
+  contents: write # Needed for creating releases and uploading assets
 
 jobs:
-  release:
-    name: Create Release
+  goreleaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Needed for changelog generation
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: 'go.mod'
 
-      - name: Build for Multiple Platforms
-        run: |
-          mkdir -p dist
-          platforms=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64" "windows/amd64")
-          
-          for platform in "${platforms[@]}"; do
-            platform_split=(${platform//\// })
-            GOOS=${platform_split[0]}
-            GOARCH=${platform_split[1]}
-            output_name="entropy-${GOOS}-${GOARCH}"
-            if [ $GOOS = "windows" ]; then
-              output_name+='.exe'
-            fi
-            
-            echo "Building for $GOOS/$GOARCH..."
-            env GOOS=$GOOS GOARCH=$GOARCH go build -o "dist/$output_name" ./cmd/entropy
-          done
-
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
         with:
-          files: dist/*
+          distribution: goreleaser
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
