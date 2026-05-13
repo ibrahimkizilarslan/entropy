@@ -22,7 +22,7 @@ type ScenarioResult struct {
 type ScenarioRunner struct {
 	config  *config.ScenarioConfig
 	logCb   func(string)
-	dc      *DockerClient
+	runtime ContainerRuntime
 	stopped []string
 	paused  []string
 }
@@ -54,7 +54,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 		res.Error = fmt.Sprintf("failed to connect to docker: %v", err)
 		return res
 	}
-	r.dc = dc
+	r.runtime = dc
 	defer dc.Close()
 
 	// 2A: Pre-scenario steady-state check
@@ -114,7 +114,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 			}
 			r.logCb(fmt.Sprintf("Probing %s", probeTarget))
 
-			probeRes := RunProbe(step.Probe, dc)
+			probeRes := RunProbe(step.Probe, r.runtime)
 			if probeRes.Success {
 				res.ProbesPassed++
 				r.logCb(fmt.Sprintf("✅ %s", probeRes.Message))
@@ -147,17 +147,17 @@ func (r *ScenarioRunner) RevertAll() {
 	r.logCb("\n[System] Initiating graceful rollback...")
 	CleanupAll() // network and resource chaos
 
-	if r.dc == nil {
+	if r.runtime == nil {
 		return
 	}
 
 	for _, target := range r.stopped {
 		r.logCb(fmt.Sprintf("Rollback: Restarting container %s", target))
-		_, _ = r.dc.RestartContainer(target, 10)
+		_, _ = r.runtime.RestartContainer(target, 10)
 	}
 	for _, target := range r.paused {
 		r.logCb(fmt.Sprintf("Rollback: Unpausing container %s", target))
-		_, _ = r.dc.UnpauseContainer(target)
+		_, _ = r.runtime.UnpauseContainer(target)
 	}
 	r.logCb("[System] Rollback complete.")
 }

@@ -24,7 +24,7 @@ func NewResourceChaosManager() *ResourceChaosManager {
 	}
 }
 
-func (m *ResourceChaosManager) ScheduleRestore(client *DockerClient, target string, duration int) {
+func (m *ResourceChaosManager) ScheduleRestore(client ContainerRuntime, target string, duration int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -49,7 +49,7 @@ func (m *ResourceChaosManager) ClearAll() {
 	}
 }
 
-type ActionHandler func(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error)
+type ActionHandler func(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error)
 
 var ActionHandlers = map[string]ActionHandler{
 	"stop":         actionStop,
@@ -61,19 +61,19 @@ var ActionHandlers = map[string]ActionHandler{
 	"limit_memory": actionLimitMemory,
 }
 
-func actionStop(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionStop(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	return client.StopContainer(target, 10)
 }
 
-func actionRestart(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionRestart(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	return client.RestartContainer(target, 10)
 }
 
-func actionPause(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionPause(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	return client.PauseContainer(target)
 }
 
-func actionDelay(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionDelay(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	pid, err := client.GetContainerPID(target)
 	if err != nil {
 		return nil, err
@@ -81,11 +81,12 @@ func actionDelay(client *DockerClient, target string, spec config.ActionSpec) (*
 	if err := NetworkManager.InjectDelay(target, pid, spec.LatencyMs, spec.JitterMs, spec.Duration); err != nil {
 		return nil, err
 	}
-	id, _ := client.getContainerID(target)
-	return client.getContainerInfo(id)
+	// For network chaos, we just return empty info since ContainerInfo isn't strictly needed 
+	// or we can fetch it. For now, returning empty is safe for the CLI output.
+	return &ContainerInfo{Name: target, Status: "running (delayed)"}, nil
 }
 
-func actionLoss(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionLoss(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	pid, err := client.GetContainerPID(target)
 	if err != nil {
 		return nil, err
@@ -93,11 +94,10 @@ func actionLoss(client *DockerClient, target string, spec config.ActionSpec) (*C
 	if err := NetworkManager.InjectLoss(target, pid, spec.LossPercent, spec.Duration); err != nil {
 		return nil, err
 	}
-	id, _ := client.getContainerID(target)
-	return client.getContainerInfo(id)
+	return &ContainerInfo{Name: target, Status: "running (lossy)"}, nil
 }
 
-func actionLimitCPU(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionLimitCPU(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	period := int64(100000)
 	quota := int64(spec.CPUs * float64(period))
 	info, err := client.UpdateContainerResources(target, quota, period, 0)
@@ -110,7 +110,7 @@ func actionLimitCPU(client *DockerClient, target string, spec config.ActionSpec)
 	return info, nil
 }
 
-func actionLimitMemory(client *DockerClient, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionLimitMemory(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	memBytes := int64(spec.MemoryMB) * 1024 * 1024
 	info, err := client.UpdateContainerResources(target, 0, 0, memBytes)
 	if err != nil {
@@ -122,7 +122,7 @@ func actionLimitMemory(client *DockerClient, target string, spec config.ActionSp
 	return info, nil
 }
 
-func Dispatch(action config.ActionSpec, client *DockerClient, target string) (*ContainerInfo, error) {
+func Dispatch(action config.ActionSpec, client ContainerRuntime, target string) (*ContainerInfo, error) {
 	handler, ok := ActionHandlers[action.Name]
 	if !ok {
 		return nil, fmt.Errorf("unknown action '%s'", action.Name)

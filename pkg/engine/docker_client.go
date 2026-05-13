@@ -15,13 +15,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-type ContainerInfo struct {
-	ID     string            `json:"id"`
-	Name   string            `json:"name"`
-	Image  string            `json:"image"`
-	Status string            `json:"status"`
-	Ports  map[string]string `json:"ports"`
-}
+// DockerClient implements the ContainerRuntime interface for Docker.
 
 type DockerClient struct {
 	cli            *client.Client

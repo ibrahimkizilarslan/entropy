@@ -108,9 +108,9 @@ func (e *ChaosEngine) runLoop() {
 		e.logger.LogStart(e.config)
 	}
 
-	dc, err := NewDockerClient(e.config.Targets)
+	runtime, err := NewDockerClient(e.config.Targets)
 	if err == nil {
-		defer dc.Close()
+		defer runtime.Close()
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -127,8 +127,8 @@ func (e *ChaosEngine) runLoop() {
 			ticksSinceLastCycle++
 			if ticksSinceLastCycle >= e.config.Interval {
 				ticksSinceLastCycle = 0
-				if dc != nil {
-					e.runCycle(dc)
+				if runtime != nil {
+					e.runCycle(runtime)
 				}
 			}
 		}
@@ -166,7 +166,7 @@ func (e *ChaosEngine) formatActionName(action config.ActionSpec) string {
 	return res
 }
 
-func (e *ChaosEngine) runCycle(dc *DockerClient) {
+func (e *ChaosEngine) runCycle(runtime ContainerRuntime) {
 	e.mu.Lock()
 	e.cycleCount++
 	downCount := len(e.downSet)
@@ -215,7 +215,7 @@ func (e *ChaosEngine) runCycle(dc *DockerClient) {
 	actionSpec := e.config.Actions[rand.IntN(len(e.config.Actions))]
 	actionName := e.formatActionName(actionSpec)
 
-	event := e.execute(dc, actionSpec, target, actionName)
+	event := e.execute(runtime, actionSpec, target, actionName)
 
 	e.mu.Lock()
 	e.lastInjectionTime = event.Timestamp
@@ -246,7 +246,7 @@ func (e *ChaosEngine) runCycle(dc *DockerClient) {
 	}
 }
 
-func (e *ChaosEngine) execute(dc *DockerClient, spec config.ActionSpec, target, actionName string) utils.EventRecord {
+func (e *ChaosEngine) execute(runtime ContainerRuntime, spec config.ActionSpec, target, actionName string) utils.EventRecord {
 	now := time.Now().UTC()
 	dryRun := e.config.Safety.DryRun
 
@@ -260,7 +260,7 @@ func (e *ChaosEngine) execute(dc *DockerClient, spec config.ActionSpec, target, 
 		}
 	}
 
-	info, err := Dispatch(spec, dc, target)
+	info, err := Dispatch(spec, runtime, target)
 	if err != nil {
 		return utils.EventRecord{
 			Timestamp: now,

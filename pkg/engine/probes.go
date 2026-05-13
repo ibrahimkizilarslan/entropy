@@ -15,14 +15,14 @@ type ProbeResult struct {
 	Message string
 }
 
-func RunProbe(spec *config.ProbeSpec, dc *DockerClient) ProbeResult {
+func RunProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
 	switch spec.Type {
 	case "http":
 		return runHTTPProbe(spec)
 	case "tcp":
 		return runTCPProbe(spec)
 	case "exec":
-		return runExecProbe(spec, dc)
+		return runExecProbe(spec, runtime)
 	default:
 		return ProbeResult{Success: false, Message: fmt.Sprintf("unsupported probe type: %s", spec.Type)}
 	}
@@ -77,9 +77,9 @@ func runTCPProbe(spec *config.ProbeSpec) ProbeResult {
 	return ProbeResult{Success: true, Message: fmt.Sprintf("TCP connected successfully to %s", spec.HostPort)}
 }
 
-func runExecProbe(spec *config.ProbeSpec, dc *DockerClient) ProbeResult {
-	if dc == nil {
-		return ProbeResult{Success: false, Message: "Docker client not initialized"}
+func runExecProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
+	if runtime == nil {
+		return ProbeResult{Success: false, Message: "Container runtime not initialized"}
 	}
 
 	cmdParts := strings.Fields(spec.Command)
@@ -87,7 +87,7 @@ func runExecProbe(spec *config.ProbeSpec, dc *DockerClient) ProbeResult {
 		return ProbeResult{Success: false, Message: "empty exec command"}
 	}
 
-	exitCode, err := dc.ExecCommand(spec.Target, cmdParts)
+	exitCode, err := runtime.ExecCommand(spec.Target, cmdParts)
 	if err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("Exec failed: %v", err)}
 	}
