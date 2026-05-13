@@ -5,10 +5,12 @@ Entropy is managed entirely through its Command Line Interface (CLI). Below is a
 ## General Commands
 
 ### `entropy init`
-Scans the current directory for a `docker-compose.yml` file and automatically generates a default `chaos.yaml` configuration file populated with the discovered services as targets.
+Scans the current environment (Docker Compose or Kubernetes) and automatically generates a default `chaos.yaml` configuration file populated with the discovered services/deployments as targets.
 
 *   **Usage:** `entropy init`
-*   **Options:** None.
+*   **Options:** 
+    *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
+    *   `--force, -f`: Overwrite `chaos.yaml` if it exists.
 
 ### `entropy start`
 Starts the background chaos engine using the random injection model defined in `chaos.yaml`. The engine will periodically inject faults based on the configured intervals and safety constraints.
@@ -16,6 +18,7 @@ Starts the background chaos engine using the random injection model defined in `
 *   **Usage:** `entropy start [OPTIONS]`
 *   **Options:**
     *   `--config <path>`: Path to a custom configuration file (default: `chaos.yaml`).
+    *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
     *   `--detach, -d`: Run engine in background mode.
     *   `--dry-run`: Override config and log actions without executing them.
     *   `--max-down <number>`: Override `safety.max_down`.
@@ -47,8 +50,9 @@ Manually injects a single chaos action into a target container.
 *   **Usage:** `entropy inject [action] [target] [OPTIONS]`
 *   **Arguments:**
     *   `[action]`: One of `stop`, `restart`, `pause`, `delay`, `loss`, `limit_cpu`, `limit_memory`.
-    *   `[target]`: Docker container/service name.
+    *   `[target]`: Docker container/service name or Kubernetes deployment/pod name.
 *   **Options:**
+    *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
     *   `--config, -c <path>`: Config file path used for target allow-list checks.
     *   `--skip-validation`: Skip target allow-list check.
     *   `--latency <ms>`: Delay latency (for `delay`).
@@ -59,9 +63,11 @@ Manually injects a single chaos action into a target container.
     *   `--duration <seconds>`: Auto-restore duration.
 
 ### `entropy doctor`
-Analyzes local Docker Compose topology for resilience risks (SPOF, missing limits, recovery gaps).
+Analyzes local Docker Compose or Kubernetes topology for resilience risks (SPOF, missing limits, recovery gaps).
 
 *   **Usage:** `entropy doctor`
+*   **Options:**
+    *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
 
 ### `entropy topology`
 Visualizes discovered topology and network blast radius.
@@ -84,6 +90,7 @@ Executes a deterministic chaos scenario defined in a YAML file. It runs the step
 *   **Arguments:**
     *   `<file>`: The path to the scenario YAML file (e.g., `chaos-scenario.example.yaml`).
 *   **Options:**
+    *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
     *   `--report <html|json>`: Report output format (default: `html`).
     *   `--output <path>`: Write scenario report to disk.
 
