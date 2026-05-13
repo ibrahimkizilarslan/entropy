@@ -3,10 +3,11 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/spf13/cobra"
+	"github.com/ibrahimkizilarslan/entropy/pkg/cli"
 )
 
 func TestRootCommand(t *testing.T) {
+	rootCmd := cli.GetRootCommand()
 	tests := []struct {
 		name    string
 		args    []string
@@ -21,9 +22,8 @@ func TestRootCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := &cobra.Command{Use: "entropy"}
-			cmd.SetArgs(tt.args)
-			err := cmd.Execute()
+			rootCmd.SetArgs(tt.args)
+			err := rootCmd.Execute()
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("rootCmd.Execute() error = %v, wantErr %v", err, tt.wantErr)
@@ -33,6 +33,7 @@ func TestRootCommand(t *testing.T) {
 }
 
 func TestRootCommandDescription(t *testing.T) {
+	rootCmd := cli.GetRootCommand()
 	// Test root command structure
 	if rootCmd.Short == "" {
 		t.Error("rootCmd.Short should not be empty")
@@ -49,6 +50,7 @@ func TestRootCommandDescription(t *testing.T) {
 }
 
 func TestRootCommandHasSubcommands(t *testing.T) {
+	rootCmd := cli.GetRootCommand()
 	expectedCommands := []string{"init", "scenario", "start", "stop", "status", "logs", "cleanup", "topology", "doctor"}
 
 	for _, expectedCmd := range expectedCommands {
@@ -64,13 +66,4 @@ func TestRootCommandHasSubcommands(t *testing.T) {
 			t.Errorf("Expected subcommand %q not found", expectedCmd)
 		}
 	}
-}
-
-// Define rootCmd for testing purposes
-var rootCmd = &cobra.Command{
-	Use:   "entropy",
-	Short: "A local chaos engineering toolkit for Docker-based microservices",
-	Long: `Entropy is a developer-first chaos engineering platform designed to inject controlled faults into local microservice environments.
-
-By prioritizing the developer workflow, Entropy enables teams to validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios before code reaches production.`,
 }

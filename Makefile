@@ -69,6 +69,11 @@ test-utils:
 	@echo "Running Utils tests..."
 	go test ./pkg/utils -v
 
+# Run Integration tests
+test-integration:
+	@echo "Running Integration tests..."
+	go test ./tests/... -v
+
 # Run specific test
 test-run:
 	@if [ -z "$(TEST)" ]; then \

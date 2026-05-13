@@ -22,3 +22,8 @@ func Execute() {
 		os.Exit(1)
 	}
 }
+
+// GetRootCommand returns the root cobra command for testing
+func GetRootCommand() *cobra.Command {
+	return rootCmd
+}

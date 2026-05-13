@@ -1,5 +1,4 @@
 package common
-package common
 
 import (
 	"os"

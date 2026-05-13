@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 	"github.com/ibrahimkizilarslan/entropy/pkg/worker"
@@ -14,14 +15,14 @@ func TestRunDaemonWithValidConfig(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test_chaos.yaml")
 
 	// Create a valid config file
-	configYAML := `interval: 10
+	configYAML := `interval: 1
 targets:
   - test-service
 actions:
   - name: pause
 safety:
   max_down: 1
-  cooldown: 30
+  cooldown: 1
   dry_run: true
 `
 
@@ -29,18 +30,32 @@ safety:
 		t.Fatalf("Failed to write config: %v", err)
 	}
 
-	// Test daemon initialization with dry-run mode
-	// In dry-run mode, no actual Docker operations will occur
 	dryRun := true
 	maxDown := 1
-	cooldown := 30
+	cooldown := 1
 
-	// Note: RunDaemon will block until interrupted, so we can only test setup
-	// Full integration testing requires Docker to be running
-	_ = dryRun
-	_ = maxDown
-	_ = cooldown
-	_ = worker.RunDaemon
+	// Run daemon in a goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- worker.RunDaemon(configPath, &dryRun, &maxDown, &cooldown)
+	}()
+
+	// Wait a bit for initialization
+	time.Sleep(100 * time.Millisecond)
+
+	// Send interrupt signal to our own process to stop the daemon
+	p, _ := os.FindProcess(os.Getpid())
+	_ = p.Signal(os.Interrupt)
+
+	// Wait for daemon to exit
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Errorf("Daemon exited with error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout waiting for daemon to exit")
+	}
 }
 
 func TestRunDaemonWithInvalidConfig(t *testing.T) {

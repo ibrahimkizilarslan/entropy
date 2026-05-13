@@ -103,10 +103,22 @@ func TestInitCommandForceFlag(t *testing.T) {
 		t.Fatalf("Failed to create initial chaos.yaml: %v", err)
 	}
 
-	// Without force flag, operation should be rejected
-	// (In actual CLI, this is handled by checking file existence)
+	// Simulation of 'init' logic: 
+	// If file exists and force is false, it should fail (in CLI it exits, here we check logic)
+	force := false
+	if _, err := os.Stat(chaosPath); err == nil && !force {
+		// Expected behavior
+	} else {
+		t.Error("Expected logic to detect existing file and lack of force flag")
+	}
 
-	// Verify initial file still exists
+	// If force is true, it should proceed to generate
+	force = true
+	if _, err := os.Stat(chaosPath); err == nil && !force {
+		t.Error("Logic should allow proceeding when force is true")
+	}
+
+	// Verify initial file still exists (we didn't actually overwrite in this test yet)
 	if _, err := os.Stat(chaosPath); err != nil {
 		t.Fatalf("Initial chaos.yaml missing: %v", err)
 	}

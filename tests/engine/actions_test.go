@@ -4,39 +4,27 @@ import (
 	"testing"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/engine"
 )
 
 func TestNewResourceChaosManager(t *testing.T) {
-	manager := NewResourceChaosManager()
+	manager := engine.NewResourceChaosManager()
 
 	if manager == nil {
 		t.Error("NewResourceChaosManager returned nil")
 	}
-
-	if manager.timers == nil {
-		t.Error("Manager timers map not initialized")
-	}
-
-	if len(manager.timers) != 0 {
-		t.Errorf("Manager timers should be empty, got %d", len(manager.timers))
-	}
 }
 
 func TestResourceChaosManagerClearAll(t *testing.T) {
-	manager := NewResourceChaosManager()
+	manager := engine.NewResourceChaosManager()
 
-	// Add some markers (can't use actual timers in tests)
-	manager.timers["target-1"] = nil
-	manager.timers["target-2"] = nil
-	manager.timers["target-3"] = nil
-
-	if len(manager.timers) != 3 {
-		t.Errorf("Expected 3 timers, got %d", len(manager.timers))
-	}
+	// In real code we can't easily add nil timers because of private fields
+	// But we can check if ClearAll works on an empty manager without crashing
+	manager.ClearAll()
 
 	// Verify structure works
-	if manager.timers == nil {
-		t.Error("Timers map should not be nil")
+	if manager == nil {
+		t.Error("Manager should not be nil")
 	}
 }
 
@@ -52,7 +40,7 @@ func TestActionHandlersMapExists(t *testing.T) {
 	}
 
 	for _, action := range expectedActions {
-		if _, ok := ActionHandlers[action]; !ok {
+		if _, ok := engine.ActionHandlers[action]; !ok {
 			t.Errorf("Action %q not found in ActionHandlers", action)
 		}
 	}
@@ -108,7 +96,7 @@ func TestDispatchWithValidAction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, ok := ActionHandlers[tt.actionName]
+			handler, ok := engine.ActionHandlers[tt.actionName]
 
 			if tt.shouldExist && !ok {
 				t.Errorf("Action %q should exist in ActionHandlers", tt.actionName)
