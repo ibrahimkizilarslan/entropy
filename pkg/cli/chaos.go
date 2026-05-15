@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -179,7 +180,7 @@ var injectCmd = &cobra.Command{
 		}
 		defer dc.Close()
 
-		info, err := engine.Dispatch(spec, dc, target)
+		info, err := engine.Dispatch(context.Background(), spec, dc, target)
 		if err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)

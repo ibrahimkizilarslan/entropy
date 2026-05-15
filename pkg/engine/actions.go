@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -36,7 +37,8 @@ func (m *ResourceChaosManager) ScheduleRestore(client ContainerRuntime, target s
 		m.mu.Lock()
 		delete(m.timers, target)
 		m.mu.Unlock()
-		_, _ = client.UpdateContainerResources(target, 0, 0, 0)
+		// Use a background context for timer-triggered restores since no caller context exists
+		_, _ = client.UpdateContainerResources(context.Background(), target, 0, 0, 0)
 	})
 }
 
@@ -49,7 +51,7 @@ func (m *ResourceChaosManager) ClearAll() {
 	}
 }
 
-type ActionHandler func(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error)
+type ActionHandler func(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error)
 
 var ActionHandlers = map[string]ActionHandler{
 	"stop":         actionStop,
@@ -61,36 +63,36 @@ var ActionHandlers = map[string]ActionHandler{
 	"limit_memory": actionLimitMemory,
 }
 
-func actionStop(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	return client.StopContainer(target, 10)
+func actionStop(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+	return client.StopContainer(ctx, target, 10)
 }
 
-func actionRestart(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	return client.RestartContainer(target, 10)
+func actionRestart(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+	return client.RestartContainer(ctx, target, 10)
 }
 
-func actionPause(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	return client.PauseContainer(target)
+func actionPause(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+	return client.PauseContainer(ctx, target)
 }
 
-func actionDelay(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	if err := client.InjectNetworkDelay(target, spec.LatencyMs, spec.JitterMs, spec.Duration); err != nil {
+func actionDelay(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+	if err := client.InjectNetworkDelay(ctx, target, spec.LatencyMs, spec.JitterMs, spec.Duration); err != nil {
 		return nil, err
 	}
 	return &ContainerInfo{Name: target, Status: "running (delayed)"}, nil
 }
 
-func actionLoss(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
-	if err := client.InjectNetworkLoss(target, spec.LossPercent, spec.Duration); err != nil {
+func actionLoss(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+	if err := client.InjectNetworkLoss(ctx, target, spec.LossPercent, spec.Duration); err != nil {
 		return nil, err
 	}
 	return &ContainerInfo{Name: target, Status: "running (lossy)"}, nil
 }
 
-func actionLimitCPU(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionLimitCPU(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	period := int64(100000)
 	quota := int64(spec.CPUs * float64(period))
-	info, err := client.UpdateContainerResources(target, quota, period, 0)
+	info, err := client.UpdateContainerResources(ctx, target, quota, period, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +102,9 @@ func actionLimitCPU(client ContainerRuntime, target string, spec config.ActionSp
 	return info, nil
 }
 
-func actionLimitMemory(client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
+func actionLimitMemory(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
 	memBytes := int64(spec.MemoryMB) * 1024 * 1024
-	info, err := client.UpdateContainerResources(target, 0, 0, memBytes)
+	info, err := client.UpdateContainerResources(ctx, target, 0, 0, memBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +114,12 @@ func actionLimitMemory(client ContainerRuntime, target string, spec config.Actio
 	return info, nil
 }
 
-func Dispatch(action config.ActionSpec, client ContainerRuntime, target string) (*ContainerInfo, error) {
+func Dispatch(ctx context.Context, action config.ActionSpec, client ContainerRuntime, target string) (*ContainerInfo, error) {
 	handler, ok := ActionHandlers[action.Name]
 	if !ok {
 		return nil, fmt.Errorf("unknown action '%s'", action.Name)
 	}
-	return handler(client, target, action)
+	return handler(ctx, client, target, action)
 }
 
 func CleanupAll() {

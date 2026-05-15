@@ -120,8 +120,8 @@ func (d *DockerClient) assertAllowed(name string) error {
 	return nil
 }
 
-func (d *DockerClient) getContainerID(name string) (string, error) {
-	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{
+func (d *DockerClient) getContainerID(ctx context.Context, name string) (string, error) {
+	containers, err := d.cli.ContainerList(ctx, types.ContainerListOptions{
 		All: true,
 	})
 	if err != nil {
@@ -140,8 +140,8 @@ func (d *DockerClient) getContainerID(name string) (string, error) {
 	return "", fmt.Errorf("container not found: %s", name)
 }
 
-func (d *DockerClient) getContainerInfo(id string) (*ContainerInfo, error) {
-	c, err := d.cli.ContainerInspect(context.Background(), id)
+func (d *DockerClient) getContainerInfo(ctx context.Context, id string) (*ContainerInfo, error) {
+	c, err := d.cli.ContainerInspect(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -164,8 +164,8 @@ func (d *DockerClient) getContainerInfo(id string) (*ContainerInfo, error) {
 	}, nil
 }
 
-func (d *DockerClient) ListContainers(all bool) ([]ContainerInfo, error) {
-	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{All: all})
+func (d *DockerClient) ListContainers(ctx context.Context, all bool) ([]ContainerInfo, error) {
+	containers, err := d.cli.ContainerList(ctx, types.ContainerListOptions{All: all})
 	if err != nil {
 		return nil, err
 	}
@@ -195,86 +195,86 @@ func (d *DockerClient) ListContainers(all bool) ([]ContainerInfo, error) {
 	return res, nil
 }
 
-func (d *DockerClient) StopContainer(name string, timeout int) (*ContainerInfo, error) {
+func (d *DockerClient) StopContainer(ctx context.Context, name string, timeout int) (*ContainerInfo, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return nil, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
 	t := timeout
-	err = d.cli.ContainerStop(context.Background(), id, container.StopOptions{Timeout: &t})
+	err = d.cli.ContainerStop(ctx, id, container.StopOptions{Timeout: &t})
 	if err != nil {
 		return nil, fmt.Errorf("failed to stop container %s: %w", name, err)
 	}
 
-	return d.getContainerInfo(id)
+	return d.getContainerInfo(ctx, id)
 }
 
-func (d *DockerClient) RestartContainer(name string, timeout int) (*ContainerInfo, error) {
+func (d *DockerClient) RestartContainer(ctx context.Context, name string, timeout int) (*ContainerInfo, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return nil, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
 	t := timeout
-	err = d.cli.ContainerRestart(context.Background(), id, container.StopOptions{Timeout: &t})
+	err = d.cli.ContainerRestart(ctx, id, container.StopOptions{Timeout: &t})
 	if err != nil {
 		return nil, fmt.Errorf("failed to restart container %s: %w", name, err)
 	}
 
-	return d.getContainerInfo(id)
+	return d.getContainerInfo(ctx, id)
 }
 
-func (d *DockerClient) PauseContainer(name string) (*ContainerInfo, error) {
+func (d *DockerClient) PauseContainer(ctx context.Context, name string) (*ContainerInfo, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return nil, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	err = d.cli.ContainerPause(context.Background(), id)
+	err = d.cli.ContainerPause(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pause container %s: %w", name, err)
 	}
 
-	return d.getContainerInfo(id)
+	return d.getContainerInfo(ctx, id)
 }
 
-func (d *DockerClient) UnpauseContainer(name string) (*ContainerInfo, error) {
+func (d *DockerClient) UnpauseContainer(ctx context.Context, name string) (*ContainerInfo, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return nil, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	err = d.cli.ContainerUnpause(context.Background(), id)
+	err = d.cli.ContainerUnpause(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unpause container %s: %w", name, err)
 	}
 
-	return d.getContainerInfo(id)
+	return d.getContainerInfo(ctx, id)
 }
 
-func (d *DockerClient) GetContainerPID(name string) (int, error) {
+func (d *DockerClient) GetContainerPID(ctx context.Context, name string) (int, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return 0, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return 0, err
 	}
 
-	c, err := d.cli.ContainerInspect(context.Background(), id)
+	c, err := d.cli.ContainerInspect(ctx, id)
 	if err != nil {
 		return 0, err
 	}
@@ -290,11 +290,11 @@ func (d *DockerClient) GetContainerPID(name string) (int, error) {
 	return c.State.Pid, nil
 }
 
-func (d *DockerClient) UpdateContainerResources(name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
+func (d *DockerClient) UpdateContainerResources(ctx context.Context, name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return nil, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -305,19 +305,19 @@ func (d *DockerClient) UpdateContainerResources(name string, cpuQuota int64, cpu
 		Memory:    memLimit,
 	}
 
-	_, err = d.cli.ContainerUpdate(context.Background(), id, container.UpdateConfig{Resources: res})
+	_, err = d.cli.ContainerUpdate(ctx, id, container.UpdateConfig{Resources: res})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update resources for container %s: %w", name, err)
 	}
 
-	return d.getContainerInfo(id)
+	return d.getContainerInfo(ctx, id)
 }
 
-func (d *DockerClient) ExecCommand(name string, cmd []string) (int, error) {
+func (d *DockerClient) ExecCommand(ctx context.Context, name string, cmd []string) (int, error) {
 	if err := d.assertAllowed(name); err != nil {
 		return -1, err
 	}
-	id, err := d.getContainerID(name)
+	id, err := d.getContainerID(ctx, name)
 	if err != nil {
 		return -1, err
 	}
@@ -328,19 +328,24 @@ func (d *DockerClient) ExecCommand(name string, cmd []string) (int, error) {
 		AttachStderr: false,
 	}
 
-	resp, err := d.cli.ContainerExecCreate(context.Background(), id, execConfig)
+	resp, err := d.cli.ContainerExecCreate(ctx, id, execConfig)
 	if err != nil {
 		return -1, fmt.Errorf("failed to create exec in container %s: %w", name, err)
 	}
 
-	err = d.cli.ContainerExecStart(context.Background(), resp.ID, types.ExecStartCheck{})
+	err = d.cli.ContainerExecStart(ctx, resp.ID, types.ExecStartCheck{})
 	if err != nil {
 		return -1, fmt.Errorf("failed to start exec in container %s: %w", name, err)
 	}
 
-	// Poll until the exec command finishes
+	// Poll until the exec command finishes, respecting context cancellation
 	for i := 0; i < 50; i++ { // max 5 seconds wait (50 * 100ms)
-		inspectResp, err := d.cli.ContainerExecInspect(context.Background(), resp.ID)
+		select {
+		case <-ctx.Done():
+			return -1, fmt.Errorf("exec cancelled in container %s: %w", name, ctx.Err())
+		default:
+		}
+		inspectResp, err := d.cli.ContainerExecInspect(ctx, resp.ID)
 		if err != nil {
 			return -1, fmt.Errorf("failed to inspect exec in container %s: %w", name, err)
 		}
@@ -353,18 +358,18 @@ func (d *DockerClient) ExecCommand(name string, cmd []string) (int, error) {
 	return -1, fmt.Errorf("timeout waiting for exec command to complete in container %s", name)
 }
 
-func (d *DockerClient) InjectNetworkDelay(target string, latencyMs int, jitterMs int, duration *int) error {
+func (d *DockerClient) InjectNetworkDelay(ctx context.Context, target string, latencyMs int, jitterMs int, duration *int) error {
 	if err := d.assertAllowed(target); err != nil {
 		return err
 	}
-	return NetworkManager.InjectDelay(d, target, latencyMs, jitterMs, duration)
+	return NetworkManager.InjectDelay(ctx, d, target, latencyMs, jitterMs, duration)
 }
 
-func (d *DockerClient) InjectNetworkLoss(target string, lossPercent int, duration *int) error {
+func (d *DockerClient) InjectNetworkLoss(ctx context.Context, target string, lossPercent int, duration *int) error {
 	if err := d.assertAllowed(target); err != nil {
 		return err
 	}
-	return NetworkManager.InjectLoss(d, target, lossPercent, duration)
+	return NetworkManager.InjectLoss(ctx, d, target, lossPercent, duration)
 }
 
 func (d *DockerClient) Close() {

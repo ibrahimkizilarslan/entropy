@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestChaosEngine_RunCycle_DryRun(t *testing.T) {
 
 	engine := NewChaosEngine(cfg, "docker", onEvent, nil)
 
-	engine.runCycle(mock) // Pass mock runtime
+	engine.runCycle(context.Background(), mock) // Pass mock runtime
 
 	// Dry run shouldn't execute actual stops
 	if mock.CallCount("StopContainer") != 0 {
@@ -57,13 +58,13 @@ func TestChaosEngine_RunCycle_Cooldown(t *testing.T) {
 	engine := NewChaosEngine(cfg, "docker", nil, nil)
 
 	// First cycle should trigger injection
-	engine.runCycle(mock)
+	engine.runCycle(context.Background(), mock)
 	if mock.CallCount("StopContainer") != 1 {
 		t.Errorf("Expected 1 StopContainer call, got %d", mock.CallCount("StopContainer"))
 	}
 
 	// Second cycle should be blocked by cooldown
-	engine.runCycle(mock)
+	engine.runCycle(context.Background(), mock)
 	if mock.CallCount("StopContainer") != 1 {
 		t.Errorf("Expected StopContainer call count to remain 1 due to cooldown, got %d", mock.CallCount("StopContainer"))
 	}
@@ -86,7 +87,7 @@ func TestChaosEngine_RunCycle_MaxDown(t *testing.T) {
 	engine := NewChaosEngine(cfg, "docker", nil, nil)
 
 	// First cycle injects a fault (stops one container)
-	engine.runCycle(mock)
+	engine.runCycle(context.Background(), mock)
 	status := engine.Status()
 	if len(status.DownContainers) != 1 {
 		t.Fatalf("Expected 1 down container, got %d", len(status.DownContainers))
@@ -98,7 +99,7 @@ func TestChaosEngine_RunCycle_MaxDown(t *testing.T) {
 	engine.mu.Unlock()
 
 	// Second cycle should be blocked by max_down limit
-	engine.runCycle(mock)
+	engine.runCycle(context.Background(), mock)
 	if mock.CallCount("StopContainer") != 1 {
 		t.Errorf("Expected StopContainer call count to remain 1 due to max_down, got %d", mock.CallCount("StopContainer"))
 	}

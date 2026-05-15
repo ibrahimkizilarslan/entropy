@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -59,7 +60,7 @@ func TestDispatch_Stop(t *testing.T) {
 	mock := NewMockRuntime()
 	spec := config.ActionSpec{Name: "stop"}
 
-	info, err := Dispatch(spec, mock, "service-a")
+	info, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err != nil {
 		t.Fatalf("Dispatch stop failed: %v", err)
 	}
@@ -75,7 +76,7 @@ func TestDispatch_Restart(t *testing.T) {
 	mock := NewMockRuntime()
 	spec := config.ActionSpec{Name: "restart"}
 
-	info, err := Dispatch(spec, mock, "service-a")
+	info, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err != nil {
 		t.Fatalf("Dispatch restart failed: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestDispatch_Pause(t *testing.T) {
 	mock := NewMockRuntime()
 	spec := config.ActionSpec{Name: "pause"}
 
-	info, err := Dispatch(spec, mock, "service-b")
+	info, err := Dispatch(context.Background(), spec, mock, "service-b")
 	if err != nil {
 		t.Fatalf("Dispatch pause failed: %v", err)
 	}
@@ -108,7 +109,7 @@ func TestDispatch_Delay(t *testing.T) {
 	dur := 10
 	spec := config.ActionSpec{Name: "delay", LatencyMs: 300, JitterMs: 50, Duration: &dur}
 
-	info, err := Dispatch(spec, mock, "service-a")
+	info, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err != nil {
 		t.Fatalf("Dispatch delay failed: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestDispatch_Loss(t *testing.T) {
 	dur := 5
 	spec := config.ActionSpec{Name: "loss", LossPercent: 20, Duration: &dur}
 
-	info, err := Dispatch(spec, mock, "service-a")
+	info, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err != nil {
 		t.Fatalf("Dispatch loss failed: %v", err)
 	}
@@ -142,7 +143,7 @@ func TestDispatch_LimitCPU(t *testing.T) {
 	dur := 10
 	spec := config.ActionSpec{Name: "limit_cpu", CPUs: 0.5, Duration: &dur}
 
-	info, err := Dispatch(spec, mock, "service-a")
+	info, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err != nil {
 		t.Fatalf("Dispatch limit_cpu failed: %v", err)
 	}
@@ -159,7 +160,7 @@ func TestDispatch_LimitMemory(t *testing.T) {
 	dur := 10
 	spec := config.ActionSpec{Name: "limit_memory", MemoryMB: 128, Duration: &dur}
 
-	info, err := Dispatch(spec, mock, "service-a")
+	info, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err != nil {
 		t.Fatalf("Dispatch limit_memory failed: %v", err)
 	}
@@ -175,7 +176,7 @@ func TestDispatch_UnknownAction(t *testing.T) {
 	mock := NewMockRuntime()
 	spec := config.ActionSpec{Name: "explode"}
 
-	_, err := Dispatch(spec, mock, "service-a")
+	_, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err == nil {
 		t.Fatal("Expected error for unknown action, got nil")
 	}
@@ -186,7 +187,7 @@ func TestDispatch_StopError(t *testing.T) {
 	mock.StopErr = fmt.Errorf("docker daemon unavailable")
 	spec := config.ActionSpec{Name: "stop"}
 
-	_, err := Dispatch(spec, mock, "service-a")
+	_, err := Dispatch(context.Background(), spec, mock, "service-a")
 	if err == nil {
 		t.Fatal("Expected error when runtime fails, got nil")
 	}
@@ -196,7 +197,7 @@ func TestDispatch_ContainerNotFound(t *testing.T) {
 	mock := NewMockRuntime()
 	spec := config.ActionSpec{Name: "stop"}
 
-	_, err := Dispatch(spec, mock, "nonexistent-service")
+	_, err := Dispatch(context.Background(), spec, mock, "nonexistent-service")
 	if err == nil {
 		t.Fatal("Expected error for nonexistent container, got nil")
 	}

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -102,7 +103,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 				}
 			}
 
-			info, err := Dispatch(*step.Action, r.runtime, step.Target)
+			info, err := Dispatch(context.Background(), *step.Action, r.runtime, step.Target)
 			if err != nil {
 				res.Success = false
 				res.Error = fmt.Sprintf("injection failed: %v", err)
@@ -160,11 +161,11 @@ func (r *ScenarioRunner) RevertAll() {
 
 	for _, target := range r.stopped {
 		r.logCb(fmt.Sprintf("Rollback: Restarting container %s", target))
-		_, _ = r.runtime.RestartContainer(target, 10)
+		_, _ = r.runtime.RestartContainer(context.Background(), target, 10)
 	}
 	for _, target := range r.paused {
 		r.logCb(fmt.Sprintf("Rollback: Unpausing container %s", target))
-		_, _ = r.runtime.UnpauseContainer(target)
+		_, _ = r.runtime.UnpauseContainer(context.Background(), target)
 	}
 	r.logCb("[System] Rollback complete.")
 }

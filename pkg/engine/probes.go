@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -201,7 +202,7 @@ func runExecProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult 
 		return ProbeResult{Success: false, Message: "empty exec command"}
 	}
 
-	exitCode, err := runtime.ExecCommand(spec.Target, cmdParts)
+	exitCode, err := runtime.ExecCommand(context.Background(), spec.Target, cmdParts)
 	if err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("Exec failed: %v", err)}
 	}

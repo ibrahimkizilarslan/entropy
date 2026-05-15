@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -119,6 +120,10 @@ func (e *ChaosEngine) runLoop() {
 		defer runtime.Close()
 	}
 
+	// Create a cancellable context tied to the engine's stop signal
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -127,6 +132,7 @@ func (e *ChaosEngine) runLoop() {
 	for {
 		select {
 		case <-e.stopEvent:
+			cancel()
 			e.cleanup()
 			return
 		case <-ticker.C:
@@ -134,7 +140,7 @@ func (e *ChaosEngine) runLoop() {
 			if ticksSinceLastCycle >= e.config.Interval {
 				ticksSinceLastCycle = 0
 				if runtime != nil {
-					e.runCycle(runtime)
+					e.runCycle(ctx, runtime)
 				}
 			}
 		}
@@ -172,7 +178,7 @@ func (e *ChaosEngine) formatActionName(action config.ActionSpec) string {
 	return res
 }
 
-func (e *ChaosEngine) runCycle(runtime ContainerRuntime) {
+func (e *ChaosEngine) runCycle(ctx context.Context, runtime ContainerRuntime) {
 	e.mu.Lock()
 	e.cycleCount++
 	downCount := len(e.downSet)
@@ -221,7 +227,7 @@ func (e *ChaosEngine) runCycle(runtime ContainerRuntime) {
 	actionSpec := e.config.Actions[rand.Intn(len(e.config.Actions))]
 	actionName := e.formatActionName(actionSpec)
 
-	event := e.execute(runtime, actionSpec, target, actionName)
+	event := e.execute(ctx, runtime, actionSpec, target, actionName)
 
 	e.mu.Lock()
 	e.lastInjectionTime = event.Timestamp
@@ -255,7 +261,7 @@ func (e *ChaosEngine) runCycle(runtime ContainerRuntime) {
 	}
 }
 
-func (e *ChaosEngine) execute(runtime ContainerRuntime, spec config.ActionSpec, target, actionName string) utils.EventRecord {
+func (e *ChaosEngine) execute(ctx context.Context, runtime ContainerRuntime, spec config.ActionSpec, target, actionName string) utils.EventRecord {
 	now := time.Now().UTC()
 	dryRun := e.config.Safety.DryRun
 
@@ -269,7 +275,7 @@ func (e *ChaosEngine) execute(runtime ContainerRuntime, spec config.ActionSpec, 
 		}
 	}
 
-	info, err := Dispatch(spec, runtime, target)
+	info, err := Dispatch(ctx, spec, runtime, target)
 	if err != nil {
 		return utils.EventRecord{
 			Timestamp: now,
