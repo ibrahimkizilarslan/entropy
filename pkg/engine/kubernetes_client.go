@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -19,6 +21,19 @@ import (
 )
 
 // KubernetesClient implements the ContainerRuntime interface for Kubernetes clusters.
+//
+// Supported actions:
+//   - stop      → deletes the pod (ReplicaSet/Deployment recreates it)
+//   - restart   → same as stop (delete + recreate by controller)
+//   - delay     → injects tc/netem via an ephemeral netshoot sidecar
+//   - loss      → injects tc/netem via an ephemeral netshoot sidecar
+//   - exec      → runs a command in the first container of the pod
+//   - limit_cpu → patches the pod's container resource limits via JSON patch
+//
+// Unsupported actions (return clear errors):
+//   - pause     → requires CRI-level SIGSTOP, not available via K8s API
+//   - unpause   → same as pause
+//   - GetContainerPID → not available via standard K8s API
 type KubernetesClient struct {
 	clientset      *kubernetes.Clientset
 	config         *rest.Config
@@ -52,7 +67,7 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 				return nil, fmt.Errorf("failed to build kubeconfig from %s: %w", kubeconfig, err)
 			}
 		} else {
-			return nil, fmt.Errorf("could not find kubeconfig")
+			return nil, fmt.Errorf("could not find kubeconfig. Set KUBECONFIG env or create ~/.kube/config")
 		}
 	}
 
@@ -63,7 +78,7 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 
 	ns := os.Getenv("ENTROPY_K8S_NAMESPACE")
 	if ns == "" {
-		ns = "default" // default namespace
+		ns = "default"
 	}
 
 	var allowed map[string]bool
@@ -89,28 +104,34 @@ func (k *KubernetesClient) assertAllowed(name string) error {
 	return nil
 }
 
-// findPod finds a pod by label "app=name" or exact name prefix.
-func (k *KubernetesClient) findPod(name string) (*corev1.Pod, error) {
-	// Try label selector first
-	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(context.Background(), metav1.ListOptions{
+// findPod finds a pod by label "app=name" or name prefix, respecting context cancellation.
+func (k *KubernetesClient) findPod(ctx context.Context, name string) (*corev1.Pod, error) {
+	// Try label selector first (most reliable for Deployments/StatefulSets)
+	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app=%s", name),
 	})
 	if err == nil && len(pods.Items) > 0 {
+		// Prefer Running pods
+		for _, p := range pods.Items {
+			if p.Status.Phase == corev1.PodRunning && p.DeletionTimestamp == nil {
+				return &p, nil
+			}
+		}
 		return &pods.Items[0], nil
 	}
 
-	// Fallback to finding by name prefix
-	pods, err = k.clientset.CoreV1().Pods(k.namespace).List(context.Background(), metav1.ListOptions{})
+	// Fallback: find by name prefix
+	pods, err = k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list pods in namespace '%s': %w", k.namespace, err)
 	}
-	for _, p := range pods.Items {
-		if strings.HasPrefix(p.Name, name) {
-			return &p, nil
+	for i, p := range pods.Items {
+		if strings.HasPrefix(p.Name, name) && p.DeletionTimestamp == nil {
+			return &pods.Items[i], nil
 		}
 	}
 
-	return nil, fmt.Errorf("pod not found for target: %s", name)
+	return nil, fmt.Errorf("no running pod found for target '%s' in namespace '%s'", name, k.namespace)
 }
 
 func (k *KubernetesClient) mapPodToContainerInfo(p *corev1.Pod) *ContainerInfo {
@@ -143,7 +164,7 @@ func (k *KubernetesClient) mapPodToContainerInfo(p *corev1.Pod) *ContainerInfo {
 func (k *KubernetesClient) ListContainers(ctx context.Context, all bool) ([]ContainerInfo, error) {
 	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list pods in namespace '%s': %w", k.namespace, err)
 	}
 
 	var res []ContainerInfo
@@ -160,7 +181,7 @@ func (k *KubernetesClient) StopContainer(ctx context.Context, name string, timeo
 	if err := k.assertAllowed(name); err != nil {
 		return nil, err
 	}
-	p, err := k.findPod(name)
+	p, err := k.findPod(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -179,29 +200,55 @@ func (k *KubernetesClient) StopContainer(ctx context.Context, name string, timeo
 }
 
 func (k *KubernetesClient) RestartContainer(ctx context.Context, name string, timeout int) (*ContainerInfo, error) {
-	// In K8s, restarting a pod is deleting it. The ReplicaSet recreates it.
+	// In K8s, "restarting" a pod means deleting it. The owning controller (Deployment/ReplicaSet)
+	// automatically creates a new replacement pod.
 	return k.StopContainer(ctx, name, timeout)
 }
 
+// PauseContainer is not supported in Kubernetes via the standard API.
+// Pausing a container requires sending SIGSTOP to the container process via the CRI (containerd/cri-o),
+// which is not exposed through the Kubernetes API server.
 func (k *KubernetesClient) PauseContainer(ctx context.Context, name string) (*ContainerInfo, error) {
-	return nil, fmt.Errorf("PauseContainer is not natively supported in Kubernetes API without CRI manipulation")
+	return nil, fmt.Errorf(
+		"pause is not supported in Kubernetes runtime\n" +
+			"  → Reason: pausing requires CRI-level SIGSTOP which is not available via the Kubernetes API\n" +
+			"  → Alternative: use 'stop' action to delete the pod (controller will recreate it)",
+	)
 }
 
+// UnpauseContainer is not supported in Kubernetes via the standard API.
 func (k *KubernetesClient) UnpauseContainer(ctx context.Context, name string) (*ContainerInfo, error) {
-	return nil, fmt.Errorf("UnpauseContainer is not natively supported in Kubernetes API without CRI manipulation")
+	return nil, fmt.Errorf(
+		"unpause is not supported in Kubernetes runtime\n" +
+			"  → Reason: pausing requires CRI-level SIGSTOP which is not available via the Kubernetes API",
+	)
 }
 
+// GetContainerPID is not supported in Kubernetes via the standard API.
 func (k *KubernetesClient) GetContainerPID(ctx context.Context, name string) (int, error) {
-	return 0, fmt.Errorf("GetContainerPID is not supported in Kubernetes via standard API")
+	return 0, fmt.Errorf(
+		"GetContainerPID is not supported in Kubernetes via the standard API\n" +
+			"  → Use ExecCommand to run 'sh -c echo $$ ' inside the container if needed",
+	)
 }
 
-func (k *KubernetesClient) injectEphemeralNetshoot(pod *corev1.Pod) error {
+// injectEphemeralNetshoot adds a netshoot ephemeral container to the pod for network chaos injection.
+// It waits up to 30 seconds for the container to become Running before returning.
+func (k *KubernetesClient) injectEphemeralNetshoot(ctx context.Context, pod *corev1.Pod) error {
+	// Check if already injected
 	for _, ec := range pod.Spec.EphemeralContainers {
 		if ec.Name == "chaos-netshoot" {
-			return nil // Already injected
+			// Verify it's actually running
+			for _, ecStatus := range pod.Status.EphemeralContainerStatuses {
+				if ecStatus.Name == "chaos-netshoot" && ecStatus.State.Running != nil {
+					return nil
+				}
+			}
+			// It exists but isn't Running yet — fall through to wait logic below
 		}
 	}
 
+	// Build the ephemeral container spec
 	ec := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            "chaos-netshoot",
@@ -212,32 +259,63 @@ func (k *KubernetesClient) injectEphemeralNetshoot(pod *corev1.Pod) error {
 					Add: []corev1.Capability{"NET_ADMIN"},
 				},
 			},
-			TTY:   true,
-			Stdin: true,
+			TTY:   false,
+			Stdin: false,
+			Command: []string{"sh", "-c", "sleep 3600"}, // Keep alive for chaos window
 		},
 	}
 
 	pod.Spec.EphemeralContainers = append(pod.Spec.EphemeralContainers, ec)
-	_, err := k.clientset.CoreV1().Pods(k.namespace).UpdateEphemeralContainers(context.Background(), pod.Name, pod, metav1.UpdateOptions{})
-	return err
+	_, err := k.clientset.CoreV1().Pods(k.namespace).UpdateEphemeralContainers(ctx, pod.Name, pod, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to inject ephemeral netshoot container into pod '%s': %w", pod.Name, err)
+	}
+
+	// Wait for the ephemeral container to become Running (up to 30 seconds)
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled while waiting for chaos-netshoot to start: %w", ctx.Err())
+		default:
+		}
+
+		updated, err := k.clientset.CoreV1().Pods(k.namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to poll ephemeral container status for pod '%s': %w", pod.Name, err)
+		}
+
+		for _, ecStatus := range updated.Status.EphemeralContainerStatuses {
+			if ecStatus.Name == "chaos-netshoot" && ecStatus.State.Running != nil {
+				return nil // Ready!
+			}
+			if ecStatus.State.Waiting != nil && ecStatus.State.Waiting.Reason == "ErrImagePull" {
+				return fmt.Errorf("failed to pull chaos-netshoot image: %s", ecStatus.State.Waiting.Message)
+			}
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout: chaos-netshoot container in pod '%s' did not become Running within 30s", pod.Name)
 }
 
 func (k *KubernetesClient) InjectNetworkDelay(ctx context.Context, target string, latencyMs int, jitterMs int, duration *int) error {
 	if err := k.assertAllowed(target); err != nil {
 		return err
 	}
-	p, err := k.findPod(target)
+	p, err := k.findPod(ctx, target)
 	if err != nil {
 		return err
 	}
 
-	if err := k.injectEphemeralNetshoot(p); err != nil {
+	if err := k.injectEphemeralNetshoot(ctx, p); err != nil {
 		return fmt.Errorf("failed to inject ephemeral container: %w", err)
 	}
 
 	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", fmt.Sprintf("%dms", latencyMs)}
 	if jitterMs > 0 {
-		cmd = append(cmd, fmt.Sprintf("%dms", jitterMs))
+		cmd = append(cmd, fmt.Sprintf("%dms", jitterMs), "distribution", "normal")
 	}
 	_, err = k.execInContainer(ctx, p.Name, "chaos-netshoot", cmd)
 	return err
@@ -247,12 +325,12 @@ func (k *KubernetesClient) InjectNetworkLoss(ctx context.Context, target string,
 	if err := k.assertAllowed(target); err != nil {
 		return err
 	}
-	p, err := k.findPod(target)
+	p, err := k.findPod(ctx, target)
 	if err != nil {
 		return err
 	}
 
-	if err := k.injectEphemeralNetshoot(p); err != nil {
+	if err := k.injectEphemeralNetshoot(ctx, p); err != nil {
 		return fmt.Errorf("failed to inject ephemeral container: %w", err)
 	}
 
@@ -277,7 +355,7 @@ func (k *KubernetesClient) execInContainer(ctx context.Context, podName string, 
 
 	exec, err := remotecommand.NewSPDYExecutor(k.config, "POST", req.URL())
 	if err != nil {
-		return -1, fmt.Errorf("failed to create spdy executor: %w", err)
+		return -1, fmt.Errorf("failed to create spdy executor for pod '%s': %w", podName, err)
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -288,30 +366,81 @@ func (k *KubernetesClient) execInContainer(ctx context.Context, podName string, 
 	})
 
 	if err != nil {
+		// tc returns "RTNETLINK answers: File exists" when rule is already set — treat as idempotent success
 		if strings.Contains(stderr.String(), "File exists") {
 			return 0, nil
 		}
-		return 1, fmt.Errorf("exec failed: %w. Stderr: %s", err, stderr.String())
+		return 1, fmt.Errorf("exec failed in pod '%s' container '%s': %w. Stderr: %s", podName, containerName, err, stderr.String())
 	}
 
 	return 0, nil
 }
 
+// UpdateContainerResources applies resource limits to the first container of a pod via JSON patch.
+// Note: cpuPeriod is ignored for K8s (uses millicores via cpuQuota/1000).
+// Only memory and CPU limits are patched; requests are left unchanged.
 func (k *KubernetesClient) UpdateContainerResources(ctx context.Context, name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
-	return nil, fmt.Errorf("In-place resource updates are generally not supported for Pods in standard Kubernetes API without alpha features")
+	if err := k.assertAllowed(name); err != nil {
+		return nil, err
+	}
+	p, err := k.findPod(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(p.Spec.Containers) == 0 {
+		return nil, fmt.Errorf("pod '%s' has no containers to patch", p.Name)
+	}
+
+	// Build a JSON merge patch for resource limits on the first container.
+	// cpuQuota is in microseconds (Docker convention), convert to millicores.
+	// Example: cpuQuota=50000, cpuPeriod=100000 → 500m
+	patches := []string{}
+	if cpuQuota > 0 && cpuPeriod > 0 {
+		milliCPU := (cpuQuota * 1000) / cpuPeriod
+		patches = append(patches, fmt.Sprintf(`"cpu":"%dm"`, milliCPU))
+	} else if cpuQuota == 0 {
+		patches = append(patches, `"cpu":null`)
+	}
+
+	if memLimit > 0 {
+		patches = append(patches, fmt.Sprintf(`"memory":"%d"`, memLimit))
+	} else if memLimit == 0 && cpuQuota == 0 {
+		// Restoring: clear both
+		patches = append(patches, `"memory":null`)
+		patches = append(patches, `"cpu":null`)
+	}
+
+	if len(patches) == 0 {
+		return k.mapPodToContainerInfo(p), nil
+	}
+
+	patchStr := fmt.Sprintf(`{"spec":{"containers":[{"name":"%s","resources":{"limits":{%s}}}]}}`,
+		p.Spec.Containers[0].Name,
+		strings.Join(patches, ","),
+	)
+
+	_, err = k.clientset.CoreV1().Pods(k.namespace).Patch(
+		ctx, p.Name, types.StrategicMergePatchType, []byte(patchStr), metav1.PatchOptions{},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to patch resources for pod '%s': %w\n  → Note: in-place resource updates require 'InPlacePodVerticalScaling' feature gate enabled on the cluster", p.Name, err)
+	}
+
+	return k.mapPodToContainerInfo(p), nil
 }
 
 func (k *KubernetesClient) ExecCommand(ctx context.Context, name string, cmd []string) (int, error) {
 	if err := k.assertAllowed(name); err != nil {
 		return -1, err
 	}
-	p, err := k.findPod(name)
+	p, err := k.findPod(ctx, name)
 	if err != nil {
 		return -1, err
 	}
 
 	if len(p.Spec.Containers) == 0 {
-		return -1, fmt.Errorf("pod %s has no containers", p.Name)
+		return -1, fmt.Errorf("pod '%s' has no containers", p.Name)
 	}
 
 	containerName := p.Spec.Containers[0].Name
