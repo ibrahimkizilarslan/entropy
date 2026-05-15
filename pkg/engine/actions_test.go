@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
@@ -8,15 +9,12 @@ import (
 
 func TestNewResourceChaosManager(t *testing.T) {
 	manager := NewResourceChaosManager()
-
 	if manager == nil {
 		t.Fatalf("NewResourceChaosManager returned nil")
 	}
-
 	if manager.timers == nil {
 		t.Fatalf("Manager timers map not initialized")
 	}
-
 	if len(manager.timers) != 0 {
 		t.Errorf("Manager timers should be empty, got %d", len(manager.timers))
 	}
@@ -24,19 +22,18 @@ func TestNewResourceChaosManager(t *testing.T) {
 
 func TestResourceChaosManagerClearAll(t *testing.T) {
 	manager := NewResourceChaosManager()
+	mock := NewMockRuntime()
+	// Schedule some restores and then clear all
+	manager.ScheduleRestore(mock, "target-1", 3600)
+	manager.ScheduleRestore(mock, "target-2", 3600)
 
-	// Add some markers (can't use actual timers in tests)
-	manager.timers["target-1"] = nil
-	manager.timers["target-2"] = nil
-	manager.timers["target-3"] = nil
+	manager.ClearAll()
 
-	if len(manager.timers) != 3 {
-		t.Errorf("Expected 3 timers, got %d", len(manager.timers))
-	}
-
-	// Verify structure works
-	if manager.timers == nil {
-		t.Error("Timers map should not be nil")
+	manager.mu.Lock()
+	count := len(manager.timers)
+	manager.mu.Unlock()
+	if count != 0 {
+		t.Errorf("Expected 0 timers after ClearAll, got %d", count)
 	}
 }
 
@@ -58,133 +55,154 @@ func TestActionHandlersMapExists(t *testing.T) {
 	}
 }
 
-func TestDispatchWithValidAction(t *testing.T) {
-	tests := []struct {
-		name        string
-		actionName  string
-		shouldExist bool
-	}{
-		{
-			name:        "stop action",
-			actionName:  "stop",
-			shouldExist: true,
-		},
-		{
-			name:        "restart action",
-			actionName:  "restart",
-			shouldExist: true,
-		},
-		{
-			name:        "pause action",
-			actionName:  "pause",
-			shouldExist: true,
-		},
-		{
-			name:        "delay action",
-			actionName:  "delay",
-			shouldExist: true,
-		},
-		{
-			name:        "loss action",
-			actionName:  "loss",
-			shouldExist: true,
-		},
-		{
-			name:        "limit_cpu action",
-			actionName:  "limit_cpu",
-			shouldExist: true,
-		},
-		{
-			name:        "limit_memory action",
-			actionName:  "limit_memory",
-			shouldExist: true,
-		},
-		{
-			name:        "invalid action",
-			actionName:  "nonexistent",
-			shouldExist: false,
-		},
+func TestDispatch_Stop(t *testing.T) {
+	mock := NewMockRuntime()
+	spec := config.ActionSpec{Name: "stop"}
+
+	info, err := Dispatch(spec, mock, "service-a")
+	if err != nil {
+		t.Fatalf("Dispatch stop failed: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			handler, ok := ActionHandlers[tt.actionName]
-
-			if tt.shouldExist && !ok {
-				t.Errorf("Action %q should exist in ActionHandlers", tt.actionName)
-			}
-
-			if !tt.shouldExist && ok {
-				t.Errorf("Action %q should not exist in ActionHandlers", tt.actionName)
-			}
-
-			if tt.shouldExist && handler == nil {
-				t.Errorf("Handler for action %q is nil", tt.actionName)
-			}
-		})
+	if info.Status != "exited" {
+		t.Errorf("Expected status 'exited', got '%s'", info.Status)
+	}
+	if mock.CallCount("StopContainer") != 1 {
+		t.Errorf("Expected 1 StopContainer call, got %d", mock.CallCount("StopContainer"))
 	}
 }
 
-func TestActionSpecBasics(t *testing.T) {
-	spec := config.ActionSpec{
-		Name:      "delay",
-		LatencyMs: 300,
-		JitterMs:  50,
-	}
+func TestDispatch_Restart(t *testing.T) {
+	mock := NewMockRuntime()
+	spec := config.ActionSpec{Name: "restart"}
 
-	if spec.Name != "delay" {
-		t.Errorf("Action spec name mismatch: got %q, want %q", spec.Name, "delay")
+	info, err := Dispatch(spec, mock, "service-a")
+	if err != nil {
+		t.Fatalf("Dispatch restart failed: %v", err)
 	}
-
-	if spec.LatencyMs != 300 {
-		t.Errorf("Latency mismatch: got %d, want 300", spec.LatencyMs)
+	if info.Status != "running" {
+		t.Errorf("Expected status 'running', got '%s'", info.Status)
 	}
-
-	if spec.JitterMs != 50 {
-		t.Errorf("Jitter mismatch: got %d, want 50", spec.JitterMs)
+	if mock.CallCount("RestartContainer") != 1 {
+		t.Errorf("Expected 1 RestartContainer call, got %d", mock.CallCount("RestartContainer"))
 	}
 }
 
-func TestActionSpecIsNetwork(t *testing.T) {
-	tests := []struct {
-		name       string
-		actionName string
-		isNetwork  bool
-	}{
-		{"delay is network", "delay", true},
-		{"loss is network", "loss", true},
-		{"stop is not network", "stop", false},
-		{"restart is not network", "restart", false},
-	}
+func TestDispatch_Pause(t *testing.T) {
+	mock := NewMockRuntime()
+	spec := config.ActionSpec{Name: "pause"}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			spec := config.ActionSpec{Name: tt.actionName}
-			if spec.IsNetwork() != tt.isNetwork {
-				t.Errorf("IsNetwork for %q: got %v, want %v", tt.actionName, spec.IsNetwork(), tt.isNetwork)
-			}
-		})
+	info, err := Dispatch(spec, mock, "service-b")
+	if err != nil {
+		t.Fatalf("Dispatch pause failed: %v", err)
+	}
+	if info.Status != "paused" {
+		t.Errorf("Expected status 'paused', got '%s'", info.Status)
+	}
+	if mock.CallCount("PauseContainer") != 1 {
+		t.Errorf("Expected 1 PauseContainer call, got %d", mock.CallCount("PauseContainer"))
 	}
 }
 
-func TestActionSpecIsResource(t *testing.T) {
-	tests := []struct {
-		name       string
-		actionName string
-		isResource bool
-	}{
-		{"limit_cpu is resource", "limit_cpu", true},
-		{"limit_memory is resource", "limit_memory", true},
-		{"stop is not resource", "stop", false},
-		{"delay is not resource", "delay", false},
-	}
+func TestDispatch_Delay(t *testing.T) {
+	mock := NewMockRuntime()
+	dur := 10
+	spec := config.ActionSpec{Name: "delay", LatencyMs: 300, JitterMs: 50, Duration: &dur}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			spec := config.ActionSpec{Name: tt.actionName}
-			if spec.IsResource() != tt.isResource {
-				t.Errorf("IsResource for %q: got %v, want %v", tt.actionName, spec.IsResource(), tt.isResource)
-			}
-		})
+	info, err := Dispatch(spec, mock, "service-a")
+	if err != nil {
+		t.Fatalf("Dispatch delay failed: %v", err)
 	}
+	if info.Status != "running (delayed)" {
+		t.Errorf("Expected status 'running (delayed)', got '%s'", info.Status)
+	}
+	if mock.CallCount("InjectNetworkDelay") != 1 {
+		t.Errorf("Expected 1 InjectNetworkDelay call, got %d", mock.CallCount("InjectNetworkDelay"))
+	}
+}
+
+func TestDispatch_Loss(t *testing.T) {
+	mock := NewMockRuntime()
+	dur := 5
+	spec := config.ActionSpec{Name: "loss", LossPercent: 20, Duration: &dur}
+
+	info, err := Dispatch(spec, mock, "service-a")
+	if err != nil {
+		t.Fatalf("Dispatch loss failed: %v", err)
+	}
+	if info.Status != "running (lossy)" {
+		t.Errorf("Expected status 'running (lossy)', got '%s'", info.Status)
+	}
+	if mock.CallCount("InjectNetworkLoss") != 1 {
+		t.Errorf("Expected 1 InjectNetworkLoss call, got %d", mock.CallCount("InjectNetworkLoss"))
+	}
+}
+
+func TestDispatch_LimitCPU(t *testing.T) {
+	mock := NewMockRuntime()
+	dur := 10
+	spec := config.ActionSpec{Name: "limit_cpu", CPUs: 0.5, Duration: &dur}
+
+	info, err := Dispatch(spec, mock, "service-a")
+	if err != nil {
+		t.Fatalf("Dispatch limit_cpu failed: %v", err)
+	}
+	if info.Name != "service-a" {
+		t.Errorf("Expected name 'service-a', got '%s'", info.Name)
+	}
+	if mock.CallCount("UpdateContainerResources") != 1 {
+		t.Errorf("Expected 1 UpdateContainerResources call, got %d", mock.CallCount("UpdateContainerResources"))
+	}
+}
+
+func TestDispatch_LimitMemory(t *testing.T) {
+	mock := NewMockRuntime()
+	dur := 10
+	spec := config.ActionSpec{Name: "limit_memory", MemoryMB: 128, Duration: &dur}
+
+	info, err := Dispatch(spec, mock, "service-a")
+	if err != nil {
+		t.Fatalf("Dispatch limit_memory failed: %v", err)
+	}
+	if info.Name != "service-a" {
+		t.Errorf("Expected name 'service-a', got '%s'", info.Name)
+	}
+	if mock.CallCount("UpdateContainerResources") != 1 {
+		t.Errorf("Expected 1 UpdateContainerResources call, got %d", mock.CallCount("UpdateContainerResources"))
+	}
+}
+
+func TestDispatch_UnknownAction(t *testing.T) {
+	mock := NewMockRuntime()
+	spec := config.ActionSpec{Name: "explode"}
+
+	_, err := Dispatch(spec, mock, "service-a")
+	if err == nil {
+		t.Fatal("Expected error for unknown action, got nil")
+	}
+}
+
+func TestDispatch_StopError(t *testing.T) {
+	mock := NewMockRuntime()
+	mock.StopErr = fmt.Errorf("docker daemon unavailable")
+	spec := config.ActionSpec{Name: "stop"}
+
+	_, err := Dispatch(spec, mock, "service-a")
+	if err == nil {
+		t.Fatal("Expected error when runtime fails, got nil")
+	}
+}
+
+func TestDispatch_ContainerNotFound(t *testing.T) {
+	mock := NewMockRuntime()
+	spec := config.ActionSpec{Name: "stop"}
+
+	_, err := Dispatch(spec, mock, "nonexistent-service")
+	if err == nil {
+		t.Fatal("Expected error for nonexistent container, got nil")
+	}
+}
+
+func TestCleanupAll(t *testing.T) {
+	// Should not panic when called with no active chaos
+	CleanupAll()
 }
