@@ -1,11 +1,18 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	yaml "gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 // ComposeService represents a subset of docker-compose service configuration
@@ -133,6 +140,100 @@ func AnalyzeTopology(dir string) ([]DoctorResult, error) {
 				Category: "SECURITY",
 				Message:  "Container is running in privileged mode. A compromise could allow attackers to gain root access to the host.",
 			})
+		}
+
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
+// AnalyzeKubernetes connects to the cluster and analyzes Deployments in the given namespace
+// for resilience anti-patterns (SPOF, Resource Limits, Probes, Privileged mode).
+func AnalyzeKubernetes(namespace string) ([]DoctorResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		kubeconfig := os.Getenv("KUBECONFIG")
+		if kubeconfig == "" {
+			if home := homedir.HomeDir(); home != "" {
+				kubeconfig = filepath.Join(home, ".kube", "config")
+			}
+		}
+		if kubeconfig != "" {
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("could not find kubeconfig")
+		}
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	if namespace == "" {
+		namespace = os.Getenv("ENTROPY_K8S_NAMESPACE")
+		if namespace == "" {
+			namespace = "default"
+		}
+	}
+
+	deps, err := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployments in namespace '%s': %w", namespace, err)
+	}
+
+	var results []DoctorResult
+
+	for _, d := range deps.Items {
+		result := DoctorResult{ServiceName: d.Name, Issues: []DoctorIssue{}}
+
+		// 1. SPOF (Single Point of Failure)
+		if d.Spec.Replicas == nil || *d.Spec.Replicas < 2 {
+			result.Issues = append(result.Issues, DoctorIssue{
+				Severity: "CRITICAL",
+				Category: "SPOF",
+				Message:  "Deployment has less than 2 replicas configured. If the node or pod fails, there will be downtime.",
+			})
+		}
+
+		// Analyze containers
+		for _, c := range d.Spec.Template.Spec.Containers {
+			// 2. Resource Exhaustion
+			hasCPU := c.Resources.Limits.Cpu() != nil && !c.Resources.Limits.Cpu().IsZero()
+			hasMemory := c.Resources.Limits.Memory() != nil && !c.Resources.Limits.Memory().IsZero()
+
+			if !hasCPU || !hasMemory {
+				result.Issues = append(result.Issues, DoctorIssue{
+					Severity: "WARNING",
+					Category: "RESOURCES",
+					Message:  fmt.Sprintf("Container '%s' is missing explicit CPU or Memory limits. A memory leak could exhaust node resources.", c.Name),
+				})
+			}
+
+			// 3. Observability (Healthchecks)
+			if c.LivenessProbe == nil || c.ReadinessProbe == nil {
+				result.Issues = append(result.Issues, DoctorIssue{
+					Severity: "WARNING",
+					Category: "OBSERVABILITY",
+					Message:  fmt.Sprintf("Container '%s' is missing Liveness or Readiness probes. K8s cannot accurately detect application hangs or ready state.", c.Name),
+				})
+			}
+
+			// 4. Security (Privileged)
+			if c.SecurityContext != nil && c.SecurityContext.Privileged != nil && *c.SecurityContext.Privileged {
+				result.Issues = append(result.Issues, DoctorIssue{
+					Severity: "CRITICAL",
+					Category: "SECURITY",
+					Message:  fmt.Sprintf("Container '%s' is running in privileged mode. A compromise could allow node-level root access.", c.Name),
+				})
+			}
 		}
 
 		results = append(results, result)

@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+	"time"
 )
 
 // DiscoverK8sTargets connects to Kubernetes and returns a list of target application names
@@ -54,10 +55,16 @@ func DiscoverK8sTargets(namespace string) ([]string, string, error) {
 
 	var targets []string
 
+	// Create a context with timeout for API calls
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Get Deployments
-	deps, err := clientset.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
-	if err == nil {
-		for _, d := range deps.Items {
+	deps, err := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list Deployments in namespace '%s': %w", namespace, err)
+	}
+	for _, d := range deps.Items {
 			// Try to use app label if exists, otherwise deployment name
 			if app, ok := d.Labels["app"]; ok {
 				targets = append(targets, app)
@@ -65,19 +72,19 @@ func DiscoverK8sTargets(namespace string) ([]string, string, error) {
 				targets = append(targets, d.Name)
 			}
 		}
-	}
 
 	// Get StatefulSets
-	sts, err := clientset.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{})
-	if err == nil {
-		for _, s := range sts.Items {
+	sts, err := clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list StatefulSets in namespace '%s': %w", namespace, err)
+	}
+	for _, s := range sts.Items {
 			if app, ok := s.Labels["app"]; ok {
 				targets = append(targets, app)
 			} else {
 				targets = append(targets, s.Name)
 			}
 		}
-	}
 
 	// Deduplicate targets
 	targetMap := make(map[string]bool)

@@ -22,7 +22,7 @@ It helps you identify weak points before running chaos experiments.`,
 		var err error
 
 		if runtimeType == "kubernetes" || runtimeType == "k8s" {
-			results, err = engine.AnalyzeK8sTopology("")
+			results, err = engine.AnalyzeKubernetes("") // namespace is resolved inside
 		} else {
 			cwd, pwdErr := os.Getwd()
 			if pwdErr != nil {

@@ -159,13 +159,17 @@ func (r *ScenarioRunner) RevertAll() {
 		return
 	}
 
-	for _, target := range r.stopped {
-		r.logCb(fmt.Sprintf("Rollback: Restarting container %s", target))
-		_, _ = r.runtime.RestartContainer(context.Background(), target, 10)
-	}
-	for _, target := range r.paused {
-		r.logCb(fmt.Sprintf("Rollback: Unpausing container %s", target))
-		_, _ = r.runtime.UnpauseContainer(context.Background(), target)
+	if r.runtimeType == "docker" {
+		for _, target := range r.stopped {
+			r.logCb(fmt.Sprintf("Rollback: Restarting container %s", target))
+			_, _ = r.runtime.RestartContainer(context.Background(), target, 10)
+		}
+		for _, target := range r.paused {
+			r.logCb(fmt.Sprintf("Rollback: Unpausing container %s", target))
+			_, _ = r.runtime.UnpauseContainer(context.Background(), target)
+		}
+	} else if r.runtimeType == "kubernetes" {
+		r.logCb("[System] Kubernetes controllers automatically recreate deleted pods; no manual restart required.")
 	}
 	r.logCb("[System] Rollback complete.")
 }
