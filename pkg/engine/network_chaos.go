@@ -2,9 +2,8 @@ package engine
 
 import (
 	"fmt"
-	"os/exec"
+	"os"
 	"regexp"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -20,31 +19,34 @@ func validateContainerName(name string) error {
 }
 
 type NetworkChaosManager struct {
-	mu     sync.Mutex
-	active map[string]int // container name → PID
-	timers map[string]*time.Timer
+	mu       sync.Mutex
+	active   map[string]ContainerRuntime // container name → runtime used for injection
+	timers   map[string]*time.Timer
+	netIface string // configurable network interface (default: eth0)
 }
 
 func NewNetworkChaosManager() *NetworkChaosManager {
+	iface := os.Getenv("ENTROPY_NET_INTERFACE")
+	if iface == "" {
+		iface = "eth0"
+	}
 	return &NetworkChaosManager{
-		active: make(map[string]int),
-		timers: make(map[string]*time.Timer),
+		active:   make(map[string]ContainerRuntime),
+		timers:   make(map[string]*time.Timer),
+		netIface: iface,
 	}
 }
 
-func (m *NetworkChaosManager) checkPlatform() error {
-	if runtime.GOOS != "linux" {
-		return fmt.Errorf("network chaos (delay/loss) requires a Linux host")
-	}
-	return nil
-}
-
-func (m *NetworkChaosManager) runTc(pid int, args []string) error {
-	cmdArgs := append([]string{"nsenter", "-t", fmt.Sprintf("%d", pid), "-n", "--", "tc"}, args...)
-	cmd := exec.Command("sudo", cmdArgs...)
-	out, err := cmd.CombinedOutput()
+// execTc runs a tc command inside the target container via the runtime's Exec API.
+// This eliminates the need for host-level sudo/nsenter privileges entirely.
+func (m *NetworkChaosManager) execTc(runtime ContainerRuntime, name string, args []string) error {
+	cmd := append([]string{"tc"}, args...)
+	exitCode, err := runtime.ExecCommand(name, cmd)
 	if err != nil {
-		return fmt.Errorf("tc failed: %s", string(out))
+		return fmt.Errorf("tc command failed for '%s': %w\n  → Hint: ensure the target container has 'iproute2' installed and NET_ADMIN capability", name, err)
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("tc command returned exit code %d for '%s'", exitCode, name)
 	}
 	return nil
 }
@@ -56,34 +58,34 @@ func (m *NetworkChaosManager) cancelTimer(containerName string) {
 	}
 }
 
-func (m *NetworkChaosManager) applyRule(name string, pid int, args []string, duration *int) error {
+func (m *NetworkChaosManager) applyRule(runtime ContainerRuntime, name string, args []string, duration *int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, exists := m.active[name]; exists {
+	// If there's an existing rule for this container, remove it first
+	if existingRT, exists := m.active[name]; exists {
 		m.cancelTimer(name)
-		_ = m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
+		_ = m.execTc(existingRT, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
 	}
 
-	addArgs := append([]string{"qdisc", "add", "dev", "eth0", "root"}, args...)
-	if err := m.runTc(pid, addArgs); err != nil {
-		return fmt.Errorf("tc failed for container '%s': %w", name, err)
+	addArgs := append([]string{"qdisc", "add", "dev", m.netIface, "root"}, args...)
+	if err := m.execTc(runtime, name, addArgs); err != nil {
+		return fmt.Errorf("network chaos injection failed for '%s': %w", name, err)
 	}
 
-	m.active[name] = pid
+	m.active[name] = runtime
 
 	if duration != nil && *duration > 0 {
+		clearName := name
 		m.timers[name] = time.AfterFunc(time.Duration(*duration)*time.Second, func() {
-			m.Clear(name, &pid)
+			m.Clear(clearName)
 		})
 	}
 	return nil
 }
 
-func (m *NetworkChaosManager) InjectDelay(name string, pid int, latencyMs int, jitterMs int, duration *int) error {
-	if err := m.checkPlatform(); err != nil {
-		return err
-	}
+// InjectDelay injects network latency into the target container using tc/netem via the container runtime exec API.
+func (m *NetworkChaosManager) InjectDelay(runtime ContainerRuntime, name string, latencyMs int, jitterMs int, duration *int) error {
 	if err := validateContainerName(name); err != nil {
 		return err
 	}
@@ -91,43 +93,44 @@ func (m *NetworkChaosManager) InjectDelay(name string, pid int, latencyMs int, j
 	if jitterMs > 0 {
 		args = append(args, fmt.Sprintf("%dms", jitterMs), "distribution", "normal")
 	}
-	return m.applyRule(name, pid, args, duration)
+	return m.applyRule(runtime, name, args, duration)
 }
 
-func (m *NetworkChaosManager) InjectLoss(name string, pid int, percent int, duration *int) error {
-	if err := m.checkPlatform(); err != nil {
-		return err
-	}
+// InjectLoss injects packet loss into the target container using tc/netem via the container runtime exec API.
+func (m *NetworkChaosManager) InjectLoss(runtime ContainerRuntime, name string, percent int, duration *int) error {
 	if err := validateContainerName(name); err != nil {
 		return err
 	}
 	args := []string{"netem", "loss", fmt.Sprintf("%d%%", percent)}
-	return m.applyRule(name, pid, args, duration)
+	return m.applyRule(runtime, name, args, duration)
 }
 
-func (m *NetworkChaosManager) Clear(name string, pid *int) {
+// Clear removes active network chaos rules from a specific container.
+func (m *NetworkChaosManager) Clear(name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.cancelTimer(name)
-	if storedPID, exists := m.active[name]; exists {
-		cleanupPID := storedPID
-		if pid != nil {
-			cleanupPID = *pid
-		}
-		_ = m.runTc(cleanupPID, []string{"qdisc", "del", "dev", "eth0", "root"})
+	if runtime, exists := m.active[name]; exists {
+		_ = m.execTc(runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
 		delete(m.active, name)
 	}
 }
 
+// ClearAll removes all active network chaos rules across all containers.
 func (m *NetworkChaosManager) ClearAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	for name := range m.timers {
-		m.cancelTimer(name)
+		if t, ok := m.timers[name]; ok {
+			t.Stop()
+		}
 	}
-	for name, pid := range m.active {
-		_ = m.runTc(pid, []string{"qdisc", "del", "dev", "eth0", "root"})
-		delete(m.active, name)
+	m.timers = make(map[string]*time.Timer)
+
+	for name, runtime := range m.active {
+		_ = m.execTc(runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
 	}
+	m.active = make(map[string]ContainerRuntime)
 }

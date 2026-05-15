@@ -17,6 +17,8 @@ builds:
       - arm64
     main: ./cmd/entropy
     binary: entropy
+    ldflags:
+      - -X github.com/ibrahimkizilarslan/entropy/pkg/cli.Version={{.Version}}
 
 archives:
   - format: tar.gz

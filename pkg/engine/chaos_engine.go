@@ -10,6 +10,10 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
+// MaxHistorySize limits the number of event records kept in memory.
+// This prevents unbounded memory growth during long-running daemon sessions.
+const MaxHistorySize = 1000
+
 type EngineStatus struct {
 	Running           bool
 	Config            *config.ChaosConfig
@@ -230,6 +234,9 @@ func (e *ChaosEngine) runCycle(runtime ContainerRuntime) {
 	}
 	e.lastEvent = &event
 	e.history = append(e.history, event)
+	if len(e.history) > MaxHistorySize {
+		e.history = e.history[len(e.history)-MaxHistorySize:]
+	}
 	e.mu.Unlock()
 
 	if e.logger != nil {
