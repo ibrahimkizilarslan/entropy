@@ -140,8 +140,8 @@ func (k *KubernetesClient) mapPodToContainerInfo(p *corev1.Pod) *ContainerInfo {
 	}
 }
 
-func (k *KubernetesClient) ListContainers(all bool) ([]ContainerInfo, error) {
-	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(context.Background(), metav1.ListOptions{})
+func (k *KubernetesClient) ListContainers(ctx context.Context, all bool) ([]ContainerInfo, error) {
+	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (k *KubernetesClient) ListContainers(all bool) ([]ContainerInfo, error) {
 	return res, nil
 }
 
-func (k *KubernetesClient) StopContainer(name string, timeout int) (*ContainerInfo, error) {
+func (k *KubernetesClient) StopContainer(ctx context.Context, name string, timeout int) (*ContainerInfo, error) {
 	if err := k.assertAllowed(name); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (k *KubernetesClient) StopContainer(name string, timeout int) (*ContainerIn
 	}
 
 	var gracePeriodSeconds int64 = int64(timeout)
-	err = k.clientset.CoreV1().Pods(k.namespace).Delete(context.Background(), p.Name, metav1.DeleteOptions{
+	err = k.clientset.CoreV1().Pods(k.namespace).Delete(ctx, p.Name, metav1.DeleteOptions{
 		GracePeriodSeconds: &gracePeriodSeconds,
 	})
 	if err != nil {
@@ -178,20 +178,20 @@ func (k *KubernetesClient) StopContainer(name string, timeout int) (*ContainerIn
 	return info, nil
 }
 
-func (k *KubernetesClient) RestartContainer(name string, timeout int) (*ContainerInfo, error) {
+func (k *KubernetesClient) RestartContainer(ctx context.Context, name string, timeout int) (*ContainerInfo, error) {
 	// In K8s, restarting a pod is deleting it. The ReplicaSet recreates it.
-	return k.StopContainer(name, timeout)
+	return k.StopContainer(ctx, name, timeout)
 }
 
-func (k *KubernetesClient) PauseContainer(name string) (*ContainerInfo, error) {
+func (k *KubernetesClient) PauseContainer(ctx context.Context, name string) (*ContainerInfo, error) {
 	return nil, fmt.Errorf("PauseContainer is not natively supported in Kubernetes API without CRI manipulation")
 }
 
-func (k *KubernetesClient) UnpauseContainer(name string) (*ContainerInfo, error) {
+func (k *KubernetesClient) UnpauseContainer(ctx context.Context, name string) (*ContainerInfo, error) {
 	return nil, fmt.Errorf("UnpauseContainer is not natively supported in Kubernetes API without CRI manipulation")
 }
 
-func (k *KubernetesClient) GetContainerPID(name string) (int, error) {
+func (k *KubernetesClient) GetContainerPID(ctx context.Context, name string) (int, error) {
 	return 0, fmt.Errorf("GetContainerPID is not supported in Kubernetes via standard API")
 }
 
@@ -222,7 +222,7 @@ func (k *KubernetesClient) injectEphemeralNetshoot(pod *corev1.Pod) error {
 	return err
 }
 
-func (k *KubernetesClient) InjectNetworkDelay(target string, latencyMs int, jitterMs int, duration *int) error {
+func (k *KubernetesClient) InjectNetworkDelay(ctx context.Context, target string, latencyMs int, jitterMs int, duration *int) error {
 	if err := k.assertAllowed(target); err != nil {
 		return err
 	}
@@ -235,22 +235,15 @@ func (k *KubernetesClient) InjectNetworkDelay(target string, latencyMs int, jitt
 		return fmt.Errorf("failed to inject ephemeral container: %w", err)
 	}
 
-	// Wait for container to be running
-	// Normally we'd watch, but for simplicity we assume it starts quickly.
-	// Actually, we can just attempt to exec the tc command in a retry loop.
-
 	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", fmt.Sprintf("%dms", latencyMs)}
 	if jitterMs > 0 {
 		cmd = append(cmd, fmt.Sprintf("%dms", jitterMs))
 	}
-
-	// We need to execute this command INSIDE the ephemeral container, not the main one.
-	// Let's create an ExecInContainer helper.
-	_, err = k.execInContainer(p.Name, "chaos-netshoot", cmd)
+	_, err = k.execInContainer(ctx, p.Name, "chaos-netshoot", cmd)
 	return err
 }
 
-func (k *KubernetesClient) InjectNetworkLoss(target string, lossPercent int, duration *int) error {
+func (k *KubernetesClient) InjectNetworkLoss(ctx context.Context, target string, lossPercent int, duration *int) error {
 	if err := k.assertAllowed(target); err != nil {
 		return err
 	}
@@ -264,11 +257,11 @@ func (k *KubernetesClient) InjectNetworkLoss(target string, lossPercent int, dur
 	}
 
 	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "loss", fmt.Sprintf("%d%%", lossPercent)}
-	_, err = k.execInContainer(p.Name, "chaos-netshoot", cmd)
+	_, err = k.execInContainer(ctx, p.Name, "chaos-netshoot", cmd)
 	return err
 }
 
-func (k *KubernetesClient) execInContainer(podName string, containerName string, cmd []string) (int, error) {
+func (k *KubernetesClient) execInContainer(ctx context.Context, podName string, containerName string, cmd []string) (int, error) {
 	req := k.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -288,29 +281,27 @@ func (k *KubernetesClient) execInContainer(podName string, containerName string,
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: &stdout,
 		Stderr: &stderr,
 		Tty:    false,
 	})
 
 	if err != nil {
-		// Ignore if it fails because it's already added (exit status 2 from tc)
 		if strings.Contains(stderr.String(), "File exists") {
 			return 0, nil
 		}
-		// If container isn't ready yet, it returns BadRequest
 		return 1, fmt.Errorf("exec failed: %w. Stderr: %s", err, stderr.String())
 	}
 
 	return 0, nil
 }
 
-func (k *KubernetesClient) UpdateContainerResources(name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
+func (k *KubernetesClient) UpdateContainerResources(ctx context.Context, name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error) {
 	return nil, fmt.Errorf("In-place resource updates are generally not supported for Pods in standard Kubernetes API without alpha features")
 }
 
-func (k *KubernetesClient) ExecCommand(name string, cmd []string) (int, error) {
+func (k *KubernetesClient) ExecCommand(ctx context.Context, name string, cmd []string) (int, error) {
 	if err := k.assertAllowed(name); err != nil {
 		return -1, err
 	}
@@ -324,7 +315,7 @@ func (k *KubernetesClient) ExecCommand(name string, cmd []string) (int, error) {
 	}
 
 	containerName := p.Spec.Containers[0].Name
-	return k.execInContainer(p.Name, containerName, cmd)
+	return k.execInContainer(ctx, p.Name, containerName, cmd)
 }
 
 func (k *KubernetesClient) Close() {

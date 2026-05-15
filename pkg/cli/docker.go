@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -25,7 +26,7 @@ var dockerListCmd = &cobra.Command{
 		}
 		defer dc.Close()
 
-		containers, err := dc.ListContainers(true)
+		containers, err := dc.ListContainers(context.Background(), true)
 		if err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)

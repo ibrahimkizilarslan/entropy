@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -39,9 +40,9 @@ func NewNetworkChaosManager() *NetworkChaosManager {
 
 // execTc runs a tc command inside the target container via the runtime's Exec API.
 // This eliminates the need for host-level sudo/nsenter privileges entirely.
-func (m *NetworkChaosManager) execTc(runtime ContainerRuntime, name string, args []string) error {
+func (m *NetworkChaosManager) execTc(ctx context.Context, runtime ContainerRuntime, name string, args []string) error {
 	cmd := append([]string{"tc"}, args...)
-	exitCode, err := runtime.ExecCommand(name, cmd)
+	exitCode, err := runtime.ExecCommand(ctx, name, cmd)
 	if err != nil {
 		return fmt.Errorf("tc command failed for '%s': %w\n  → Hint: ensure the target container has 'iproute2' installed and NET_ADMIN capability", name, err)
 	}
@@ -58,18 +59,18 @@ func (m *NetworkChaosManager) cancelTimer(containerName string) {
 	}
 }
 
-func (m *NetworkChaosManager) applyRule(runtime ContainerRuntime, name string, args []string, duration *int) error {
+func (m *NetworkChaosManager) applyRule(ctx context.Context, runtime ContainerRuntime, name string, args []string, duration *int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// If there's an existing rule for this container, remove it first
 	if existingRT, exists := m.active[name]; exists {
 		m.cancelTimer(name)
-		_ = m.execTc(existingRT, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
+		_ = m.execTc(ctx, existingRT, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
 	}
 
 	addArgs := append([]string{"qdisc", "add", "dev", m.netIface, "root"}, args...)
-	if err := m.execTc(runtime, name, addArgs); err != nil {
+	if err := m.execTc(ctx, runtime, name, addArgs); err != nil {
 		return fmt.Errorf("network chaos injection failed for '%s': %w", name, err)
 	}
 
@@ -85,7 +86,7 @@ func (m *NetworkChaosManager) applyRule(runtime ContainerRuntime, name string, a
 }
 
 // InjectDelay injects network latency into the target container using tc/netem via the container runtime exec API.
-func (m *NetworkChaosManager) InjectDelay(runtime ContainerRuntime, name string, latencyMs int, jitterMs int, duration *int) error {
+func (m *NetworkChaosManager) InjectDelay(ctx context.Context, runtime ContainerRuntime, name string, latencyMs int, jitterMs int, duration *int) error {
 	if err := validateContainerName(name); err != nil {
 		return err
 	}
@@ -93,16 +94,16 @@ func (m *NetworkChaosManager) InjectDelay(runtime ContainerRuntime, name string,
 	if jitterMs > 0 {
 		args = append(args, fmt.Sprintf("%dms", jitterMs), "distribution", "normal")
 	}
-	return m.applyRule(runtime, name, args, duration)
+	return m.applyRule(ctx, runtime, name, args, duration)
 }
 
 // InjectLoss injects packet loss into the target container using tc/netem via the container runtime exec API.
-func (m *NetworkChaosManager) InjectLoss(runtime ContainerRuntime, name string, percent int, duration *int) error {
+func (m *NetworkChaosManager) InjectLoss(ctx context.Context, runtime ContainerRuntime, name string, percent int, duration *int) error {
 	if err := validateContainerName(name); err != nil {
 		return err
 	}
 	args := []string{"netem", "loss", fmt.Sprintf("%d%%", percent)}
-	return m.applyRule(runtime, name, args, duration)
+	return m.applyRule(ctx, runtime, name, args, duration)
 }
 
 // Clear removes active network chaos rules from a specific container.
@@ -112,7 +113,7 @@ func (m *NetworkChaosManager) Clear(name string) {
 
 	m.cancelTimer(name)
 	if runtime, exists := m.active[name]; exists {
-		_ = m.execTc(runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
+		_ = m.execTc(context.Background(), runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
 		delete(m.active, name)
 	}
 }
@@ -130,7 +131,7 @@ func (m *NetworkChaosManager) ClearAll() {
 	m.timers = make(map[string]*time.Timer)
 
 	for name, runtime := range m.active {
-		_ = m.execTc(runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
+		_ = m.execTc(context.Background(), runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
 	}
 	m.active = make(map[string]ContainerRuntime)
 }
