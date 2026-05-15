@@ -50,14 +50,19 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 		r.logCb(fmt.Sprintf("Hypothesis: %s", r.config.Hypothesis))
 	}
 
-	dc, err := GetRuntime(r.runtimeType, nil)
-	if err != nil {
-		res.Success = false
-		res.Error = fmt.Sprintf("failed to connect to docker: %v", err)
-		return res
+	if r.runtime == nil {
+		dc, err := GetRuntime(r.runtimeType, nil)
+		if err != nil {
+			res.Success = false
+			res.Error = fmt.Sprintf("failed to connect to %s: %v", r.runtimeType, err)
+			return res
+		}
+		r.runtime = dc
+		defer dc.Close()
+	} else {
+		// If runtime was already injected (e.g. by tests), we still want to ensure it gets closed
+		defer r.runtime.Close()
 	}
-	r.runtime = dc
-	defer dc.Close()
 
 	// 2A: Pre-scenario steady-state check
 	if len(r.config.SteadyState) > 0 {
@@ -97,7 +102,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 				}
 			}
 
-			info, err := Dispatch(*step.Action, dc, step.Target)
+			info, err := Dispatch(*step.Action, r.runtime, step.Target)
 			if err != nil {
 				res.Success = false
 				res.Error = fmt.Sprintf("injection failed: %v", err)

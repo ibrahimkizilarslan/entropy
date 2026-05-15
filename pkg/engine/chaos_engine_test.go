@@ -2,33 +2,104 @@ package engine
 
 import (
 	"testing"
+	"time"
+
+	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
-func TestNewChaosEngine(t *testing.T) {
-	// Engine creation requires a real config, which needs proper setup
-	// For now, we test that action handlers exist
-	if len(ActionHandlers) == 0 {
-		t.Error("ActionHandlers should not be empty")
+func TestChaosEngine_RunCycle_DryRun(t *testing.T) {
+	mock := NewMockRuntime()
+	cfg := &config.ChaosConfig{
+		Targets:  []string{"service-a"},
+		Interval: 1,
+		Actions:  []config.ActionSpec{{Name: "stop"}},
+		Safety:   config.SafetyConfig{DryRun: true, MaxDown: 1, Cooldown: 0},
+	}
+
+	events := []utils.EventRecord{}
+	onEvent := func(e utils.EventRecord) {
+		events = append(events, e)
+	}
+
+	engine := NewChaosEngine(cfg, "docker", onEvent, nil)
+
+	engine.runCycle(mock) // Pass mock runtime
+
+	// Dry run shouldn't execute actual stops
+	if mock.CallCount("StopContainer") != 0 {
+		t.Errorf("Expected 0 StopContainer calls in dry run, got %d", mock.CallCount("StopContainer"))
+	}
+
+	if len(events) != 1 {
+		t.Fatalf("Expected 1 event, got %d", len(events))
+	}
+
+	if !events[0].DryRun {
+		t.Error("Expected event to be marked as DryRun")
+	}
+	
+	status := engine.Status()
+	if status.CycleCount != 1 {
+		t.Errorf("Expected cycle count 1, got %d", status.CycleCount)
 	}
 }
 
-func TestActionHandlersExist(t *testing.T) {
-	expectedCount := 7 // stop, restart, pause, delay, loss, limit_cpu, limit_memory
-	if len(ActionHandlers) < expectedCount {
-		t.Errorf("Expected at least %d action handlers, got %d", expectedCount, len(ActionHandlers))
+func TestChaosEngine_RunCycle_Cooldown(t *testing.T) {
+	mock := NewMockRuntime()
+	cfg := &config.ChaosConfig{
+		Targets:  []string{"service-a"},
+		Interval: 1,
+		Actions:  []config.ActionSpec{{Name: "stop"}},
+		Safety:   config.SafetyConfig{DryRun: false, MaxDown: 1, Cooldown: 60},
+	}
+
+	engine := NewChaosEngine(cfg, "docker", nil, nil)
+
+	// First cycle should trigger injection
+	engine.runCycle(mock)
+	if mock.CallCount("StopContainer") != 1 {
+		t.Errorf("Expected 1 StopContainer call, got %d", mock.CallCount("StopContainer"))
+	}
+
+	// Second cycle should be blocked by cooldown
+	engine.runCycle(mock)
+	if mock.CallCount("StopContainer") != 1 {
+		t.Errorf("Expected StopContainer call count to remain 1 due to cooldown, got %d", mock.CallCount("StopContainer"))
+	}
+
+	status := engine.Status()
+	if status.CooldownRemaining <= 0 {
+		t.Error("Expected cooldown to be active")
 	}
 }
 
-func TestNetworkActions(t *testing.T) {
-	// Test that network manager exists
-	if NetworkManager == nil {
-		t.Error("NetworkManager should not be nil")
+func TestChaosEngine_RunCycle_MaxDown(t *testing.T) {
+	mock := NewMockRuntime()
+	cfg := &config.ChaosConfig{
+		Targets:  []string{"service-a", "service-b"},
+		Interval: 1,
+		Actions:  []config.ActionSpec{{Name: "stop"}},
+		Safety:   config.SafetyConfig{DryRun: false, MaxDown: 1, Cooldown: 0},
 	}
-}
 
-func TestResourceActions(t *testing.T) {
-	// Test that resource manager exists
-	if ResourceManager == nil {
-		t.Error("ResourceManager should not be nil")
+	engine := NewChaosEngine(cfg, "docker", nil, nil)
+
+	// First cycle injects a fault (stops one container)
+	engine.runCycle(mock)
+	status := engine.Status()
+	if len(status.DownContainers) != 1 {
+		t.Fatalf("Expected 1 down container, got %d", len(status.DownContainers))
+	}
+
+	// We reset cooldown manually to test max_down logic alone
+	engine.mu.Lock()
+	engine.lastInjectionTime = time.Time{}
+	engine.mu.Unlock()
+
+	// Second cycle should be blocked by max_down limit
+	engine.runCycle(mock)
+	if mock.CallCount("StopContainer") != 1 {
+		t.Errorf("Expected StopContainer call count to remain 1 due to max_down, got %d", mock.CallCount("StopContainer"))
 	}
 }
