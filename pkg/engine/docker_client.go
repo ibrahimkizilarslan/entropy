@@ -354,19 +354,17 @@ func (d *DockerClient) ExecCommand(name string, cmd []string) (int, error) {
 }
 
 func (d *DockerClient) InjectNetworkDelay(target string, latencyMs int, jitterMs int, duration *int) error {
-	pid, err := d.GetContainerPID(target)
-	if err != nil {
+	if err := d.assertAllowed(target); err != nil {
 		return err
 	}
-	return NetworkManager.InjectDelay(target, pid, latencyMs, jitterMs, duration)
+	return NetworkManager.InjectDelay(d, target, latencyMs, jitterMs, duration)
 }
 
 func (d *DockerClient) InjectNetworkLoss(target string, lossPercent int, duration *int) error {
-	pid, err := d.GetContainerPID(target)
-	if err != nil {
+	if err := d.assertAllowed(target); err != nil {
 		return err
 	}
-	return NetworkManager.InjectLoss(target, pid, lossPercent, duration)
+	return NetworkManager.InjectLoss(d, target, lossPercent, duration)
 }
 
 func (d *DockerClient) Close() {

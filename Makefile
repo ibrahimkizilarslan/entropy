@@ -1,8 +1,12 @@
-.PHONY: help test test-cli test-engine test-worker test-coverage test-coverage-report test-verbose test-run
+.PHONY: help build install test test-cli test-engine test-worker test-coverage test-coverage-report test-verbose test-run
 
 help:
-	@echo "Entropy Test Suite Commands"
+	@echo "Entropy Commands"
 	@echo "============================"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build                - Build the entropy binary"
+	@echo "  make install              - Install entropy to GOPATH/bin"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test                 - Run all tests in pkg/ (standard Go testing)"
@@ -22,10 +26,25 @@ help:
 	@echo "  make test-watch           - Run tests on file changes (requires entr)"
 	@echo ""
 
+# Build the entropy binary with version info from git
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -X github.com/ibrahimkizilarslan/entropy/pkg/cli.Version=$(VERSION)
+
+build:
+	@echo "Building entropy $(VERSION)..."
+	go build -ldflags "$(LDFLAGS)" -o entropy ./cmd/entropy
+	@echo "Built: ./entropy"
+
+# Install entropy to GOPATH/bin
+install:
+	@echo "Installing entropy $(VERSION)..."
+	go install -ldflags "$(LDFLAGS)" ./cmd/entropy
+	@echo "Installed to $(shell go env GOPATH)/bin/entropy"
+
 # Run all tests from pkg/ directory (standard Go testing)
 test:
 	@echo "Running all tests..."
-	go test ./pkg/... -v
+	go test ./pkg/...
 
 # Run all tests with verbose output
 test-verbose:

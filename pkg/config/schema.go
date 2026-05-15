@@ -145,8 +145,14 @@ func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
 	var w waitStep
 	if err := value.Decode(&w); err == nil && w.Wait != "" {
 		s.Type = "wait"
-		w.Wait = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(w.Wait)), "s")
-		_, _ = fmt.Sscanf(w.Wait, "%d", &s.DurationS)
+		raw := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(w.Wait)), "s")
+		n, err := fmt.Sscanf(raw, "%d", &s.DurationS)
+		if n == 0 || err != nil {
+			return fmt.Errorf("invalid wait duration: '%s' (expected format: '5s' or '5')", w.Wait)
+		}
+		if s.DurationS < 0 {
+			return fmt.Errorf("wait duration must be non-negative, got %d", s.DurationS)
+		}
 		return nil
 	}
 	var i injectStep

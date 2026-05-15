@@ -32,8 +32,30 @@ func TestValidateContainerName(t *testing.T) {
 	}
 }
 
-func TestNetworkChaosManager_checkPlatform(t *testing.T) {
-	// This test just ensures we don't panic. Actual behavior depends on runtime.GOOS
+func TestNewNetworkChaosManager(t *testing.T) {
 	m := NewNetworkChaosManager()
-	_ = m.checkPlatform()
+	if m == nil {
+		t.Fatal("NewNetworkChaosManager returned nil")
+	}
+	if m.active == nil {
+		t.Error("active map should be initialized")
+	}
+	if m.timers == nil {
+		t.Error("timers map should be initialized")
+	}
+	if m.netIface == "" {
+		t.Error("netIface should have a default value")
+	}
+}
+
+func TestNetworkChaosManager_ClearAll_Empty(t *testing.T) {
+	m := NewNetworkChaosManager()
+	// Should not panic on empty manager
+	m.ClearAll()
+	if len(m.active) != 0 {
+		t.Error("active should be empty after ClearAll")
+	}
+	if len(m.timers) != 0 {
+		t.Error("timers should be empty after ClearAll")
+	}
 }

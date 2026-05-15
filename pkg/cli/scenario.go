@@ -13,6 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version can be set at build time via ldflags:
+//
+//	go build -ldflags "-X github.com/ibrahimkizilarslan/entropy/pkg/cli.Version=v1.0.0"
+var Version = "dev"
+
 var (
 	reportFormat string
 	reportOutput string
@@ -39,6 +44,10 @@ var scenarioRunCmd = &cobra.Command{
 		runner := engine.NewScenarioRunner(cfg, runtimeType, func(msg string) {
 			pterm.Printf("  %s\n", msg)
 		})
+
+		// Always revert injected faults when scenario finishes, regardless of success or failure.
+		// This prevents orphaned chaos faults from persisting after a failed scenario.
+		defer runner.RevertAll()
 
 		// Setup signal trap for graceful rollback
 		sigChan := make(chan os.Signal, 1)
@@ -72,7 +81,7 @@ var scenarioRunCmd = &cobra.Command{
 				Hypothesis:     cfg.Hypothesis,
 				Result:         result,
 				Timestamp:      time.Now().Format(time.RFC1123),
-				EntropyVersion: "v0.5.0", // Hardcoded for now
+				EntropyVersion: Version,
 			}
 
 			var err error
