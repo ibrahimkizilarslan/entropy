@@ -63,7 +63,12 @@ Manually injects a single chaos action into a target container.
     *   `--duration <seconds>`: Auto-restore duration.
 
 ### `entropy doctor`
-Analyzes local Docker Compose or Kubernetes topology for resilience risks (SPOF, missing limits, recovery gaps).
+Analyzes local Docker Compose or Kubernetes topology for resilience risks. It specifically checks for:
+- **SPOF**: Services with less than 2 replicas.
+- **Resource Limits**: Missing CPU or Memory limits.
+- **Recovery**: Missing restart policies (Docker).
+- **Observability**: Missing Liveness/Readiness probes (Kubernetes) or Healthchecks (Docker).
+- **Security**: Containers running in privileged mode.
 
 *   **Usage:** `entropy doctor`
 *   **Options:**
@@ -100,3 +105,11 @@ Executes a deterministic chaos scenario defined in a YAML file. It runs the step
 Lists all running Docker containers on the host machine. This is a utility command to verify Docker connectivity and see what containers are available to target.
 
 *   **Usage:** `entropy docker list`
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENTROPY_K8S_NAMESPACE` | Target namespace for Kubernetes operations. | `default` |
+| `ENTROPY_NET_INTERFACE` | The network interface name inside containers where `tc` rules are applied. | `eth0` |
+| `KUBECONFIG` | Path to the kubeconfig file for cluster access. | `~/.kube/config` |
