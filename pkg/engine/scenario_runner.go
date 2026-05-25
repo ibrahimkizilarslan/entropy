@@ -8,6 +8,10 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
+// DefaultStepTimeout is the maximum time a single inject or probe step can take
+// before being cancelled. This prevents indefinite hangs from stuck API calls.
+const DefaultStepTimeout = 60 * time.Second
+
 type ScenarioResult struct {
 	Success           bool
 	ProbesPassed      int
@@ -27,16 +31,21 @@ type ScenarioRunner struct {
 	stopped     []string
 	paused      []string
 	runtimeType string
+	ctx         context.Context
+	cancel      context.CancelFunc
 }
 
 func NewScenarioRunner(cfg *config.ScenarioConfig, runtimeType string, logCb func(string)) *ScenarioRunner {
 	if logCb == nil {
 		logCb = func(string) {}
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	return &ScenarioRunner{
 		config:      cfg,
 		logCb:       logCb,
 		runtimeType: runtimeType,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 }
 
@@ -79,12 +88,28 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 	}
 
 	for i, step := range r.config.Steps {
+		// Check if the scenario has been cancelled (e.g. via Ctrl+C)
+		select {
+		case <-r.ctx.Done():
+			res.Success = false
+			res.Error = "scenario cancelled"
+			return res
+		default:
+		}
+
 		res.ExecutedSteps++
 		r.logCb(fmt.Sprintf("\nStep %d/%d: %s", i+1, res.TotalSteps, step.Type))
 
 		if step.Type == "wait" {
 			r.logCb(fmt.Sprintf("Waiting for %ds...", step.DurationS))
-			time.Sleep(time.Duration(step.DurationS) * time.Second)
+			// Use a select so that wait steps can be cancelled
+			select {
+			case <-time.After(time.Duration(step.DurationS) * time.Second):
+			case <-r.ctx.Done():
+				res.Success = false
+				res.Error = "scenario cancelled during wait"
+				return res
+			}
 		} else if step.Type == "inject" {
 			actionName := step.Action.Name
 			r.logCb(fmt.Sprintf("Injecting %s into %s", actionName, step.Target))
@@ -103,7 +128,11 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 				}
 			}
 
-			info, err := Dispatch(context.Background(), *step.Action, r.runtime, step.Target)
+			// Create a per-step context with timeout to prevent indefinite hangs
+			stepCtx, stepCancel := context.WithTimeout(r.ctx, DefaultStepTimeout)
+			info, err := Dispatch(stepCtx, *step.Action, r.runtime, step.Target)
+			stepCancel()
+
 			if err != nil {
 				res.Success = false
 				res.Error = fmt.Sprintf("injection failed: %v", err)
@@ -122,7 +151,7 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 			}
 			r.logCb(fmt.Sprintf("Probing %s", probeTarget))
 
-			probeRes := RunProbe(step.Probe, r.runtime)
+			probeRes := RunProbeWithContext(r.ctx, step.Probe, r.runtime)
 			if probeRes.Success {
 				res.ProbesPassed++
 				r.logCb(fmt.Sprintf("✅ %s", probeRes.Message))
@@ -153,6 +182,10 @@ func (r *ScenarioRunner) Run() ScenarioResult {
 
 func (r *ScenarioRunner) RevertAll() {
 	r.logCb("\n[System] Initiating graceful rollback...")
+	// Cancel any in-flight steps first
+	if r.cancel != nil {
+		r.cancel()
+	}
 	CleanupAll() // network and resource chaos
 
 	if r.runtime == nil {

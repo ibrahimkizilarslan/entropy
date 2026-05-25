@@ -9,14 +9,14 @@ import (
 
 func TestScenarioRunner_Run_Success(t *testing.T) {
 	mock := NewMockRuntime()
-	
+
 	// Create a simple scenario config
 	cfg := &config.ScenarioConfig{
 		Name:       "Test Scenario",
 		Hypothesis: "System survives stop action",
 		Steps: []config.ScenarioStep{
 			{
-				Type: "inject",
+				Type:   "inject",
 				Target: "service-a",
 				Action: &config.ActionSpec{Name: "stop"},
 			},
@@ -39,7 +39,7 @@ func TestScenarioRunner_Run_Success(t *testing.T) {
 	if result.ExecutedSteps != 1 {
 		t.Errorf("Expected 1 executed step, got %d", result.ExecutedSteps)
 	}
-	
+
 	// Check if mock was called correctly
 	if mock.CallCount("StopContainer") != 1 {
 		t.Errorf("Expected 1 StopContainer call, got %d", mock.CallCount("StopContainer"))
@@ -82,15 +82,15 @@ func TestScenarioRunner_RevertAll(t *testing.T) {
 
 func TestScenarioRunner_Run_ProbeFailure(t *testing.T) {
 	mock := NewMockRuntime()
-	
+
 	cfg := &config.ScenarioConfig{
 		Name: "Probe Failure Test",
 		Steps: []config.ScenarioStep{
 			{
 				Type: "probe",
 				Probe: &config.ProbeSpec{
-					Type: "exec",
-					Target: "service-a",
+					Type:    "exec",
+					Target:  "service-a",
 					Command: "ls -la",
 				},
 			},
@@ -98,7 +98,7 @@ func TestScenarioRunner_Run_ProbeFailure(t *testing.T) {
 	}
 
 	// Configure mock to fail the exec command
-	mock.ExecExit = 1 
+	mock.ExecExit = 1
 
 	runner := NewScenarioRunner(cfg, "docker", nil)
 	runner.runtime = mock

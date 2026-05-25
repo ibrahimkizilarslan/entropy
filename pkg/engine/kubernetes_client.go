@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,9 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/client-go/util/homedir"
 )
 
 // KubernetesClient implements the ContainerRuntime interface for Kubernetes clusters.
@@ -47,38 +44,14 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 		return nil, fmt.Errorf("refusing to run in production environment. Set ENTROPY_ALLOW_PRODUCTION=true to override")
 	}
 
-	var config *rest.Config
-	var err error
-
-	// Try in-cluster config first
-	config, err = rest.InClusterConfig()
+	config, err := buildK8sConfig()
 	if err != nil {
-		// Fallback to kubeconfig
-		kubeconfig := os.Getenv("KUBECONFIG")
-		if kubeconfig == "" {
-			if home := homedir.HomeDir(); home != "" {
-				kubeconfig = filepath.Join(home, ".kube", "config")
-			}
-		}
-
-		if kubeconfig != "" {
-			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-			if err != nil {
-				return nil, fmt.Errorf("failed to build kubeconfig from %s: %w", kubeconfig, err)
-			}
-		} else {
-			return nil, fmt.Errorf("could not find kubeconfig. Set KUBECONFIG env or create ~/.kube/config")
-		}
+		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, ns, err := newK8sClientSet("")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
-	}
-
-	ns := os.Getenv("ENTROPY_K8S_NAMESPACE")
-	if ns == "" {
-		ns = "default"
+		return nil, err
 	}
 
 	var allowed map[string]bool
@@ -248,19 +221,25 @@ func (k *KubernetesClient) injectEphemeralNetshoot(ctx context.Context, pod *cor
 		}
 	}
 
+	// Make the netshoot image configurable for air-gapped environments
+	netshootImage := os.Getenv("ENTROPY_NETSHOOT_IMAGE")
+	if netshootImage == "" {
+		netshootImage = "nicolaka/netshoot:latest"
+	}
+
 	// Build the ephemeral container spec
 	ec := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            "chaos-netshoot",
-			Image:           "nicolaka/netshoot:latest",
+			Image:           netshootImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: &corev1.SecurityContext{
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{"NET_ADMIN"},
 				},
 			},
-			TTY:   false,
-			Stdin: false,
+			TTY:     false,
+			Stdin:   false,
 			Command: []string{"sh", "-c", "sleep 3600"}, // Keep alive for chaos window
 		},
 	}

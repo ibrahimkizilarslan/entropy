@@ -110,19 +110,23 @@ func validateProbeHostPort(hostPort string) error {
 }
 
 func RunProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
+	return RunProbeWithContext(context.Background(), spec, runtime)
+}
+
+func RunProbeWithContext(ctx context.Context, spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
 	switch spec.Type {
 	case "http":
-		return runHTTPProbe(spec)
+		return runHTTPProbe(ctx, spec)
 	case "tcp":
-		return runTCPProbe(spec)
+		return runTCPProbe(ctx, spec)
 	case "exec":
-		return runExecProbe(spec, runtime)
+		return runExecProbe(ctx, spec, runtime)
 	default:
 		return ProbeResult{Success: false, Message: fmt.Sprintf("unsupported probe type: %s", spec.Type)}
 	}
 }
 
-func runHTTPProbe(spec *config.ProbeSpec) ProbeResult {
+func runHTTPProbe(ctx context.Context, spec *config.ProbeSpec) ProbeResult {
 	// SSRF protection: validate URL before making the request
 	if err := validateProbeURL(spec.URL); err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("SSRF protection: %v", err)}
@@ -143,7 +147,12 @@ func runHTTPProbe(spec *config.ProbeSpec) ProbeResult {
 		},
 	}
 
-	resp, err := client.Get(spec.URL)
+	req, err := http.NewRequestWithContext(ctx, "GET", spec.URL, nil)
+	if err != nil {
+		return ProbeResult{Success: false, Message: fmt.Sprintf("Failed to create request: %v", err)}
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		if spec.ExpectStatus != nil {
 			return ProbeResult{Success: false, Message: fmt.Sprintf("HTTP GET failed: %v", err)}
@@ -177,14 +186,18 @@ func runHTTPProbe(spec *config.ProbeSpec) ProbeResult {
 	return ProbeResult{Success: true, Message: fmt.Sprintf("HTTP GET succeeded with status %d", status)}
 }
 
-func runTCPProbe(spec *config.ProbeSpec) ProbeResult {
+func runTCPProbe(ctx context.Context, spec *config.ProbeSpec) ProbeResult {
 	// SSRF protection: validate host:port before connecting
 	if err := validateProbeHostPort(spec.HostPort); err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("SSRF protection: %v", err)}
 	}
 
 	timeout := time.Duration(spec.Timeout) * time.Second
-	conn, err := net.DialTimeout("tcp", spec.HostPort, timeout)
+
+	var d net.Dialer
+	d.Timeout = timeout
+
+	conn, err := d.DialContext(ctx, "tcp", spec.HostPort)
 	if err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("TCP connect failed to %s: %v", spec.HostPort, err)}
 	}
@@ -192,7 +205,7 @@ func runTCPProbe(spec *config.ProbeSpec) ProbeResult {
 	return ProbeResult{Success: true, Message: fmt.Sprintf("TCP connected successfully to %s", spec.HostPort)}
 }
 
-func runExecProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
+func runExecProbe(ctx context.Context, spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
 	if runtime == nil {
 		return ProbeResult{Success: false, Message: "Container runtime not initialized"}
 	}
@@ -202,7 +215,7 @@ func runExecProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult 
 		return ProbeResult{Success: false, Message: "empty exec command"}
 	}
 
-	exitCode, err := runtime.ExecCommand(context.Background(), spec.Target, cmdParts)
+	exitCode, err := runtime.ExecCommand(ctx, spec.Target, cmdParts)
 	if err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("Exec failed: %v", err)}
 	}

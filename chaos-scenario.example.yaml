@@ -54,3 +54,5 @@ steps:
       url: "http://localhost:8085/api/catalog"
       expect_status: 200
       timeout: 5
+
+

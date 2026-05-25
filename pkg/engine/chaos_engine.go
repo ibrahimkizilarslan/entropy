@@ -111,6 +111,19 @@ func (e *ChaosEngine) Status() EngineStatus {
 }
 
 func (e *ChaosEngine) runLoop() {
+	// Prevent silent daemon death: recover from unexpected panics in the background goroutine
+	defer func() {
+		if r := recover(); r != nil {
+			if e.logger != nil {
+				e.logger.LogError(fmt.Sprintf("PANIC recovered in chaos engine: %v", r))
+			}
+			e.mu.Lock()
+			e.running = false
+			e.mu.Unlock()
+			e.cleanup()
+		}
+	}()
+
 	if e.logger != nil {
 		e.logger.LogStart(e.config)
 	}
