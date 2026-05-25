@@ -186,11 +186,12 @@ func (r *ScenarioRunner) RevertAll() {
 	if r.cancel != nil {
 		r.cancel()
 	}
-	CleanupAll() // network and resource chaos
 
 	if r.runtime == nil {
 		return
 	}
+
+	r.runtime.CleanupAll(context.Background()) // network and resource chaos
 
 	if r.runtimeType == "docker" {
 		for _, target := range r.stopped {

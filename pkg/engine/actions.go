@@ -9,11 +9,6 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
-var (
-	NetworkManager  = NewNetworkChaosManager()
-	ResourceManager = NewResourceChaosManager()
-)
-
 type ResourceChaosManager struct {
 	mu     sync.Mutex
 	timers map[string]*time.Timer
@@ -97,7 +92,7 @@ func actionLimitCPU(ctx context.Context, client ContainerRuntime, target string,
 		return nil, err
 	}
 	if spec.Duration != nil && *spec.Duration > 0 {
-		ResourceManager.ScheduleRestore(client, target, *spec.Duration)
+		client.ScheduleResourceRestore(ctx, target, *spec.Duration)
 	}
 	return info, nil
 }
@@ -109,7 +104,7 @@ func actionLimitMemory(ctx context.Context, client ContainerRuntime, target stri
 		return nil, err
 	}
 	if spec.Duration != nil && *spec.Duration > 0 {
-		ResourceManager.ScheduleRestore(client, target, *spec.Duration)
+		client.ScheduleResourceRestore(ctx, target, *spec.Duration)
 	}
 	return info, nil
 }
@@ -120,9 +115,4 @@ func Dispatch(ctx context.Context, action config.ActionSpec, client ContainerRun
 		return nil, fmt.Errorf("unknown action '%s'", action.Name)
 	}
 	return handler(ctx, client, target, action)
-}
-
-func CleanupAll() {
-	NetworkManager.ClearAll()
-	ResourceManager.ClearAll()
 }

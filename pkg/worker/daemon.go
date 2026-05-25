@@ -11,7 +11,7 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
-func RunDaemon(configPath string, runtimeType string, dryRun *bool, maxDown *int, cooldown *int) error {
+func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *bool, maxDown *int, cooldown *int) error {
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func RunDaemon(configPath string, runtimeType string, dryRun *bool, maxDown *int
 	}
 
 	state := utils.NewStateManager("")
-	logger, err := utils.NewChaosLogger(state.LogFile())
+	logger, err := utils.NewChaosLogger(state.LogFile(), logFormat)
 	if err != nil {
 		return err
 	}

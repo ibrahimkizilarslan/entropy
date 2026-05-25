@@ -1,12 +1,10 @@
 package utils
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
@@ -22,10 +20,10 @@ type InjectionEvent struct {
 
 type ChaosLogger struct {
 	file   *os.File
-	logger *log.Logger
+	logger *slog.Logger
 }
 
-func NewChaosLogger(logFilePath string) (*ChaosLogger, error) {
+func NewChaosLogger(logFilePath, format string) (*ChaosLogger, error) {
 	if logFilePath == "" {
 		logFilePath = ".entropy/engine.log"
 	}
@@ -34,60 +32,68 @@ func NewChaosLogger(logFilePath string) (*ChaosLogger, error) {
 		return nil, err
 	}
 
-	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// Use 0640 for logs to prevent world-readable exposure of potentially sensitive environment info
+	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
 	if err != nil {
 		return nil, err
 	}
 
+	var handler slog.Handler
+	if strings.ToLower(format) == "json" {
+		handler = slog.NewJSONHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo})
+	} else {
+		handler = slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo})
+	}
+
 	return &ChaosLogger{
 		file:   f,
-		logger: log.New(f, "", 0),
+		logger: slog.New(handler),
 	}, nil
 }
 
-func (l *ChaosLogger) format(level, msg string) string {
-	ts := time.Now().UTC().Format(time.RFC3339)
-	return fmt.Sprintf("%s | %-6s | %s", ts, level, msg)
-}
-
 func (l *ChaosLogger) LogStart(cfg *config.ChaosConfig) {
-	msg := fmt.Sprintf("ENGINE STARTED | targets=%s interval=%ds max_down=%d cooldown=%ds dry_run=%v",
-		strings.Join(cfg.Targets, ","), cfg.Interval, cfg.Safety.MaxDown, cfg.Safety.Cooldown, cfg.Safety.DryRun)
-	l.logger.Println(l.format("INFO", msg))
+	l.logger.Info("ENGINE STARTED",
+		slog.String("targets", strings.Join(cfg.Targets, ",")),
+		slog.Int("interval", cfg.Interval),
+		slog.Int("max_down", cfg.Safety.MaxDown),
+		slog.Int("cooldown", cfg.Safety.Cooldown),
+		slog.Bool("dry_run", cfg.Safety.DryRun),
+	)
 }
 
 func (l *ChaosLogger) LogStop(cycleCount, injectionCount int) {
-	msg := fmt.Sprintf("ENGINE STOPPED | cycles=%d injections=%d", cycleCount, injectionCount)
-	l.logger.Println(l.format("INFO", msg))
+	l.logger.Info("ENGINE STOPPED",
+		slog.Int("cycles", cycleCount),
+		slog.Int("injections", injectionCount),
+	)
 }
 
 func (l *ChaosLogger) LogInjection(event InjectionEvent) {
-	dry := ""
-	if event.DryRun {
-		dry = "[DRY-RUN] "
+	args := []any{
+		slog.String("action", event.Action),
+		slog.String("target", event.Target),
+		slog.Bool("dry_run", event.DryRun),
 	}
+
 	if event.Success {
-		msg := fmt.Sprintf("%s%s → %s | result=%s", dry, strings.ToUpper(event.Action), event.Target, event.ResultStatus)
-		l.logger.Println(l.format("ACTION", msg))
+		args = append(args, slog.String("result", event.ResultStatus))
+		l.logger.Info("ACTION", args...)
 	} else {
-		msg := fmt.Sprintf("%s%s → %s | %s", dry, strings.ToUpper(event.Action), event.Target, event.Error)
-		l.logger.Println(l.format("ERROR", msg))
+		args = append(args, slog.String("error", event.Error))
+		l.logger.Error("ERROR", args...)
 	}
 }
 
 func (l *ChaosLogger) LogCooldownSkip(remaining float64) {
-	msg := fmt.Sprintf("COOLDOWN | remaining=%.1fs", remaining)
-	l.logger.Println(l.format("SKIP", msg))
+	l.logger.Info("COOLDOWN", slog.Float64("remaining", remaining))
 }
 
 func (l *ChaosLogger) LogMaxDownSkip(downContainers []string) {
-	msg := fmt.Sprintf("MAX_DOWN | down=%s", strings.Join(downContainers, ","))
-	l.logger.Println(l.format("SKIP", msg))
+	l.logger.Info("MAX_DOWN", slog.String("down", strings.Join(downContainers, ",")))
 }
 
 func (l *ChaosLogger) LogError(message string) {
-	msg := fmt.Sprintf("ENGINE ERROR | %s", message)
-	l.logger.Println(l.format("ERROR", msg))
+	l.logger.Error("ENGINE ERROR", slog.String("message", message))
 }
 
 func (l *ChaosLogger) Close() {

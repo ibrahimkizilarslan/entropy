@@ -49,13 +49,14 @@ var startCmd = &cobra.Command{
 		if detach {
 			_ = state.EnsureDir()
 
-			cmdArgs := []string{"run-worker", "--config", configPath, "--max-down", fmt.Sprintf("%d", cfg.Safety.MaxDown), "--cooldown", fmt.Sprintf("%d", cfg.Safety.Cooldown), "--runtime", runtimeType}
+			logFormat, _ := cmd.Flags().GetString("log-format")
+			cmdArgs := []string{"run-worker", "--config", configPath, "--log-format", logFormat, "--max-down", fmt.Sprintf("%d", cfg.Safety.MaxDown), "--cooldown", fmt.Sprintf("%d", cfg.Safety.Cooldown), "--runtime", runtimeType}
 			if cfg.Safety.DryRun {
 				cmdArgs = append(cmdArgs, "--dry-run")
 			}
 
 			daemonCmd := exec.Command(os.Args[0], cmdArgs...)
-			logFile, err := os.OpenFile(state.LogFile(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			logFile, err := os.OpenFile(state.LogFile(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0640)
 			if err != nil {
 				pterm.Error.Println(err)
 				os.Exit(1)
@@ -75,7 +76,8 @@ var startCmd = &cobra.Command{
 			dryRunOpt := cfg.Safety.DryRun
 			maxDownOpt := cfg.Safety.MaxDown
 			cooldownOpt := cfg.Safety.Cooldown
-			if err := worker.RunDaemon(configPath, runtimeType, &dryRunOpt, &maxDownOpt, &cooldownOpt); err != nil {
+			logFormat, _ := cmd.Flags().GetString("log-format")
+			if err := worker.RunDaemon(configPath, runtimeType, logFormat, &dryRunOpt, &maxDownOpt, &cooldownOpt); err != nil {
 				pterm.Error.Println(err)
 				os.Exit(1)
 			}
@@ -197,6 +199,7 @@ func init() {
 	startCmd.Flags().Bool("dry-run", false, "Override config: log actions without executing them")
 	startCmd.Flags().Int("max-down", 1, "Override config: max containers stopped simultaneously")
 	startCmd.Flags().Int("cooldown", 0, "Override config: min seconds between injections")
+	startCmd.Flags().String("log-format", "text", "Log format: text or json")
 
 	rootCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(statusCmd)
@@ -215,9 +218,9 @@ func init() {
 
 var cleanupCmd = &cobra.Command{
 	Use:   "cleanup",
-	Short: "Emergency cleanup: revert all active faults",
+	Short: "Force cleanup of any lingering chaos injections",
 	Run: func(cmd *cobra.Command, args []string) {
-		engine.CleanupAll()
-		pterm.Success.Println("Emergency cleanup completed. All network and resource constraints removed.")
+		pterm.Warning.Println("Global CleanupAll has been removed. Use scenario runner to revert actions, or target runtimes directly.")
+		os.Exit(1)
 	},
 }

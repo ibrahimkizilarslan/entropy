@@ -13,7 +13,8 @@ func TestChaosLogger(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	logger, err := NewChaosLogger(logPath)
+	// Initialize the logger in text format for testing
+	logger, err := NewChaosLogger(logPath, "text")
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -77,14 +78,14 @@ func TestChaosLogger(t *testing.T) {
 	logContent := string(content)
 
 	expectedStrings := []string{
-		"ENGINE STARTED | targets=svc1,svc2 interval=10s max_down=2 cooldown=30s dry_run=false",
-		"STOP → svc1 | result=stopped",
-		"STOP → svc2 | container not found",
-		"[DRY-RUN] DELAY → svc1 | result=(dry-run)",
-		"COOLDOWN | remaining=12.5s",
-		"MAX_DOWN | down=svc1,svc2",
-		"ENGINE ERROR | some engine error",
-		"ENGINE STOPPED | cycles=5 injections=3",
+		"msg=\"ENGINE STARTED\" targets=svc1,svc2 interval=10 max_down=2 cooldown=30 dry_run=false",
+		"msg=ACTION action=stop target=svc1 dry_run=false result=stopped",
+		"msg=ERROR action=stop target=svc2 dry_run=false error=\"container not found\"",
+		"msg=ACTION action=delay target=svc1 dry_run=true result=(dry-run)",
+		"msg=COOLDOWN remaining=12.5",
+		"msg=MAX_DOWN down=svc1,svc2",
+		"msg=\"ENGINE ERROR\" message=\"some engine error\"",
+		"msg=\"ENGINE STOPPED\" cycles=5 injections=3",
 	}
 
 	for _, str := range expectedStrings {
@@ -97,12 +98,10 @@ func TestChaosLogger(t *testing.T) {
 func TestNewChaosLogger_DefaultPath(t *testing.T) {
 	// We should be careful about testing default path which is relative
 	// Let's create a temp dir and set it as cwd
-	originalCwd, _ := os.Getwd()
 	tempDir := t.TempDir()
-	_ = os.Chdir(tempDir)
-	defer func() { _ = os.Chdir(originalCwd) }()
+	t.Chdir(tempDir)
 
-	logger, err := NewChaosLogger("")
+	logger, err := NewChaosLogger("", "text")
 	if err != nil {
 		t.Fatalf("Failed to create logger with empty path: %v", err)
 	}
