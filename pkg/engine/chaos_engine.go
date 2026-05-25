@@ -111,6 +111,8 @@ func (e *ChaosEngine) Status() EngineStatus {
 }
 
 func (e *ChaosEngine) runLoop() {
+	var runtime ContainerRuntime
+
 	// Prevent silent daemon death: recover from unexpected panics in the background goroutine
 	defer func() {
 		if r := recover(); r != nil {
@@ -120,7 +122,7 @@ func (e *ChaosEngine) runLoop() {
 			e.mu.Lock()
 			e.running = false
 			e.mu.Unlock()
-			e.cleanup()
+			e.cleanup(runtime)
 		}
 	}()
 
@@ -128,8 +130,9 @@ func (e *ChaosEngine) runLoop() {
 		e.logger.LogStart(e.config)
 	}
 
-	runtime, err := GetRuntime(e.runtimeType, e.config.Targets)
+	rt, err := GetRuntime(e.runtimeType, e.config.Targets)
 	if err == nil {
+		runtime = rt
 		defer runtime.Close()
 	}
 
@@ -146,7 +149,7 @@ func (e *ChaosEngine) runLoop() {
 		select {
 		case <-e.stopEvent:
 			cancel()
-			e.cleanup()
+			e.cleanup(runtime)
 			return
 		case <-ticker.C:
 			ticksSinceLastCycle++
@@ -160,13 +163,15 @@ func (e *ChaosEngine) runLoop() {
 	}
 }
 
-func (e *ChaosEngine) cleanup() {
+func (e *ChaosEngine) cleanup(runtime ContainerRuntime) {
 	e.mu.Lock()
 	cycles := e.cycleCount
 	injections := len(e.history)
 	e.mu.Unlock()
 
-	CleanupAll()
+	if runtime != nil {
+		runtime.CleanupAll(context.Background())
+	}
 
 	if e.logger != nil {
 		e.logger.LogStop(cycles, injections)

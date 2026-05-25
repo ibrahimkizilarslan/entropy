@@ -25,9 +25,11 @@ type ContainerRuntime interface {
 	UnpauseContainer(ctx context.Context, name string) (*ContainerInfo, error)
 	GetContainerPID(ctx context.Context, name string) (int, error)
 	UpdateContainerResources(ctx context.Context, name string, cpuQuota int64, cpuPeriod int64, memLimit int64) (*ContainerInfo, error)
+	ScheduleResourceRestore(ctx context.Context, target string, duration int)
 	InjectNetworkDelay(ctx context.Context, target string, latencyMs int, jitterMs int, duration *int) error
 	InjectNetworkLoss(ctx context.Context, target string, lossPercent int, duration *int) error
 	ExecCommand(ctx context.Context, name string, cmd []string) (int, error)
 	ListContainers(ctx context.Context, all bool) ([]ContainerInfo, error)
+	CleanupAll(ctx context.Context)
 	Close()
 }

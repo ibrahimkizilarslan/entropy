@@ -17,9 +17,10 @@ var runWorkerCmd = &cobra.Command{
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		maxDown, _ := cmd.Flags().GetInt("max-down")
 		cooldown, _ := cmd.Flags().GetInt("cooldown")
+		logFormat, _ := cmd.Flags().GetString("log-format")
 
 		runtime, _ := cmd.Flags().GetString("runtime")
-		err := worker.RunDaemon(configPath, runtime, &dryRun, &maxDown, &cooldown)
+		err := worker.RunDaemon(configPath, runtime, logFormat, &dryRun, &maxDown, &cooldown)
 		if err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)
@@ -34,4 +35,5 @@ func init() {
 	runWorkerCmd.Flags().Int("max-down", 1, "Override config: max containers stopped simultaneously")
 	runWorkerCmd.Flags().Int("cooldown", 0, "Override config: min seconds between injections")
 	runWorkerCmd.Flags().String("runtime", "docker", "Container runtime to use")
+	runWorkerCmd.Flags().String("log-format", "text", "Log format: text or json")
 }

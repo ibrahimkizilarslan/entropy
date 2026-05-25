@@ -141,6 +141,14 @@ func (m *MockRuntime) UpdateContainerResources(ctx context.Context, name string,
 	return info, nil
 }
 
+func (m *MockRuntime) ScheduleResourceRestore(ctx context.Context, target string, duration int) {
+	m.record("ScheduleResourceRestore", target, duration)
+}
+
+func (m *MockRuntime) CleanupAll(ctx context.Context) {
+	m.record("CleanupAll")
+}
+
 func (m *MockRuntime) InjectNetworkDelay(ctx context.Context, target string, latencyMs int, jitterMs int, duration *int) error {
 	m.record("InjectNetworkDelay", target, latencyMs, jitterMs, duration)
 	return m.DelayErr

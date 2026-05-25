@@ -32,10 +32,11 @@ import (
 //   - unpause   → same as pause
 //   - GetContainerPID → not available via standard K8s API
 type KubernetesClient struct {
-	clientset      *kubernetes.Clientset
-	config         *rest.Config
-	namespace      string
-	allowedTargets map[string]bool
+	clientset       *kubernetes.Clientset
+	config          *rest.Config
+	namespace       string
+	allowedTargets  map[string]bool
+	resourceManager *ResourceChaosManager
 }
 
 func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
@@ -63,10 +64,11 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 	}
 
 	return &KubernetesClient{
-		clientset:      clientset,
-		config:         config,
-		namespace:      ns,
-		allowedTargets: allowed,
+		clientset:       clientset,
+		config:          config,
+		namespace:       ns,
+		allowedTargets:  allowed,
+		resourceManager: NewResourceChaosManager(),
 	}, nil
 }
 
@@ -424,6 +426,14 @@ func (k *KubernetesClient) ExecCommand(ctx context.Context, name string, cmd []s
 
 	containerName := p.Spec.Containers[0].Name
 	return k.execInContainer(ctx, p.Name, containerName, cmd)
+}
+
+func (k *KubernetesClient) ScheduleResourceRestore(ctx context.Context, target string, duration int) {
+	k.resourceManager.ScheduleRestore(k, target, duration)
+}
+
+func (k *KubernetesClient) CleanupAll(ctx context.Context) {
+	k.resourceManager.ClearAll()
 }
 
 func (k *KubernetesClient) Close() {

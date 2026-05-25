@@ -18,8 +18,10 @@ import (
 // DockerClient implements the ContainerRuntime interface for Docker.
 
 type DockerClient struct {
-	cli            *client.Client
-	allowedTargets map[string]bool
+	cli             *client.Client
+	allowedTargets  map[string]bool
+	networkManager  *NetworkChaosManager
+	resourceManager *ResourceChaosManager
 }
 
 func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient, error) {
@@ -41,8 +43,10 @@ func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient,
 	}
 
 	return &DockerClient{
-		cli:            cli,
-		allowedTargets: allowed,
+		cli:             cli,
+		allowedTargets:  allowed,
+		networkManager:  NewNetworkChaosManager(),
+		resourceManager: NewResourceChaosManager(),
 	}, nil
 }
 
@@ -362,16 +366,27 @@ func (d *DockerClient) InjectNetworkDelay(ctx context.Context, target string, la
 	if err := d.assertAllowed(target); err != nil {
 		return err
 	}
-	return NetworkManager.InjectDelay(ctx, d, target, latencyMs, jitterMs, duration)
+	return d.networkManager.InjectDelay(ctx, d, target, latencyMs, jitterMs, duration)
 }
 
 func (d *DockerClient) InjectNetworkLoss(ctx context.Context, target string, lossPercent int, duration *int) error {
 	if err := d.assertAllowed(target); err != nil {
 		return err
 	}
-	return NetworkManager.InjectLoss(ctx, d, target, lossPercent, duration)
+	return d.networkManager.InjectLoss(ctx, d, target, lossPercent, duration)
+}
+
+func (d *DockerClient) ScheduleResourceRestore(ctx context.Context, target string, duration int) {
+	d.resourceManager.ScheduleRestore(d, target, duration)
+}
+
+func (d *DockerClient) CleanupAll(ctx context.Context) {
+	d.networkManager.ClearAll()
+	d.resourceManager.ClearAll()
 }
 
 func (d *DockerClient) Close() {
-	d.cli.Close()
+	if d.cli != nil {
+		d.cli.Close()
+	}
 }

@@ -203,7 +203,4 @@ func TestDispatch_ContainerNotFound(t *testing.T) {
 	}
 }
 
-func TestCleanupAll(t *testing.T) {
-	// Should not panic when called with no active chaos
-	CleanupAll()
-}
+// End of file

@@ -22,7 +22,7 @@ First off, thank you for considering contributing to Entropy CLI! It's people li
 ## Local Development Setup
 
 1. **Prerequisites:** 
-   - Go 1.22.2+
+   - Go 1.26+
    - Docker daemon running locally (Docker Desktop or native Linux).
 
 2. **Building the CLI:**
@@ -44,4 +44,6 @@ First off, thank you for considering contributing to Entropy CLI! It's people li
 - **Fail gracefully:** Entropy is a resilience tool. It must never crash unexpectedly. Always handle errors and ensure `RevertAll` functions clean up any injected chaos.
 
 We look forward to your contributions!
+
+
 
