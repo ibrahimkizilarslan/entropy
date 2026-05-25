@@ -39,7 +39,7 @@ func TestChaosEngine_RunCycle_DryRun(t *testing.T) {
 	if !events[0].DryRun {
 		t.Error("Expected event to be marked as DryRun")
 	}
-	
+
 	status := engine.Status()
 	if status.CycleCount != 1 {
 		t.Errorf("Expected cycle count 1, got %d", status.CycleCount)

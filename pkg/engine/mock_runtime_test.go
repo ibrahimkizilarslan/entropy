@@ -18,16 +18,16 @@ type MockRuntime struct {
 	Calls []MockCall
 
 	// Configurable behavior
-	StopErr     error
-	RestartErr  error
-	PauseErr    error
-	UnpauseErr  error
-	ExecErr     error
-	ExecExit    int
-	DelayErr    error
-	LossErr     error
-	UpdateErr   error
-	ListErr     error
+	StopErr    error
+	RestartErr error
+	PauseErr   error
+	UnpauseErr error
+	ExecErr    error
+	ExecExit   int
+	DelayErr   error
+	LossErr    error
+	UpdateErr  error
+	ListErr    error
 }
 
 type MockCall struct {

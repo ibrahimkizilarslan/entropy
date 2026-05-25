@@ -9,10 +9,6 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 )
 
 // ComposeService represents a subset of docker-compose service configuration
@@ -154,39 +150,14 @@ func AnalyzeKubernetes(namespace string) ([]DoctorResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	config, err := rest.InClusterConfig()
+	clientset, ns, err := newK8sClientSet(namespace)
 	if err != nil {
-		kubeconfig := os.Getenv("KUBECONFIG")
-		if kubeconfig == "" {
-			if home := homedir.HomeDir(); home != "" {
-				kubeconfig = filepath.Join(home, ".kube", "config")
-			}
-		}
-		if kubeconfig != "" {
-			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-			if err != nil {
-				return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("could not find kubeconfig")
-		}
+		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	deps, err := clientset.AppsV1().Deployments(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
-	}
-
-	if namespace == "" {
-		namespace = os.Getenv("ENTROPY_K8S_NAMESPACE")
-		if namespace == "" {
-			namespace = "default"
-		}
-	}
-
-	deps, err := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list deployments in namespace '%s': %w", namespace, err)
+		return nil, fmt.Errorf("failed to list deployments in namespace '%s': %w", ns, err)
 	}
 
 	var results []DoctorResult
