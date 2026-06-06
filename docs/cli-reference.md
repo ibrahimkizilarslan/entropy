@@ -75,9 +75,16 @@ Analyzes local Docker Compose or Kubernetes topology for resilience risks. It sp
     *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
 
 ### `entropy topology`
-Visualizes discovered topology and network blast radius.
+Visualize discovered topology and network blast radius.
 
 *   **Usage:** `entropy topology`
+
+### `entropy validate`
+Validates a chaos configuration file without executing it. It parses the file, applies defaults, and checks for schema errors, missing targets, or invalid safety parameters.
+
+*   **Usage:** `entropy validate [file]`
+*   **Arguments:**
+    *   `[file]`: The path to the chaos YAML file (e.g., `chaos.yaml`).
 
 ### `entropy completion`
 Generates shell completion scripts.
