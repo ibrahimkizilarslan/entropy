@@ -37,6 +37,7 @@ type KubernetesClient struct {
 	namespace       string
 	allowedTargets  map[string]bool
 	resourceManager *ResourceChaosManager
+	networkManager  *NetworkChaosManager
 }
 
 func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
@@ -69,6 +70,7 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 		namespace:       ns,
 		allowedTargets:  allowed,
 		resourceManager: NewResourceChaosManager(),
+		networkManager:  NewNetworkChaosManager(),
 	}, nil
 }
 
@@ -285,39 +287,36 @@ func (k *KubernetesClient) InjectNetworkDelay(ctx context.Context, target string
 	if err := k.assertAllowed(target); err != nil {
 		return err
 	}
+
+	// Ensure the ephemeral netshoot sidecar is injected before delegating to the manager
 	p, err := k.findPod(ctx, target)
 	if err != nil {
 		return err
 	}
-
 	if err := k.injectEphemeralNetshoot(ctx, p); err != nil {
 		return fmt.Errorf("failed to inject ephemeral container: %w", err)
 	}
 
-	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", fmt.Sprintf("%dms", latencyMs)}
-	if jitterMs > 0 {
-		cmd = append(cmd, fmt.Sprintf("%dms", jitterMs), "distribution", "normal")
-	}
-	_, err = k.execInContainer(ctx, p.Name, "chaos-netshoot", cmd)
-	return err
+	// Delegate to NetworkChaosManager which handles duration-based auto-revert.
+	// The manager uses ExecCommand (via ContainerRuntime interface) to run tc inside
+	// the chaos-netshoot ephemeral container, matching Docker client behavior.
+	return k.networkManager.InjectDelay(ctx, k, target, latencyMs, jitterMs, duration)
 }
 
 func (k *KubernetesClient) InjectNetworkLoss(ctx context.Context, target string, lossPercent int, duration *int) error {
 	if err := k.assertAllowed(target); err != nil {
 		return err
 	}
+
 	p, err := k.findPod(ctx, target)
 	if err != nil {
 		return err
 	}
-
 	if err := k.injectEphemeralNetshoot(ctx, p); err != nil {
 		return fmt.Errorf("failed to inject ephemeral container: %w", err)
 	}
 
-	cmd := []string{"tc", "qdisc", "add", "dev", "eth0", "root", "netem", "loss", fmt.Sprintf("%d%%", lossPercent)}
-	_, err = k.execInContainer(ctx, p.Name, "chaos-netshoot", cmd)
-	return err
+	return k.networkManager.InjectLoss(ctx, k, target, lossPercent, duration)
 }
 
 func (k *KubernetesClient) execInContainer(ctx context.Context, podName string, containerName string, cmd []string) (int, error) {
@@ -433,6 +432,7 @@ func (k *KubernetesClient) ScheduleResourceRestore(ctx context.Context, target s
 }
 
 func (k *KubernetesClient) CleanupAll(ctx context.Context) {
+	k.networkManager.ClearAll()
 	k.resourceManager.ClearAll()
 }
 
