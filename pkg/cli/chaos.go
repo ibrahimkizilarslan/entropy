@@ -218,9 +218,40 @@ func init() {
 
 var cleanupCmd = &cobra.Command{
 	Use:   "cleanup",
-	Short: "Force cleanup of any lingering chaos injections",
+	Short: "Emergency cleanup: revert all active faults",
+	Long: `Connects to the container runtime and reverts any lingering chaos injections.
+This removes active network constraints (tc rules), cancels pending resource
+restore timers, and unpauses any paused containers.
+
+Use this command after an unexpected exit or crash to ensure no leftover
+faults are affecting your services.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pterm.Warning.Println("Global CleanupAll has been removed. Use scenario runner to revert actions, or target runtimes directly.")
-		os.Exit(1)
+		pterm.Info.Println("Connecting to runtime for emergency cleanup...")
+
+		rt, err := engine.GetRuntime(runtimeType, nil)
+		if err != nil {
+			pterm.Error.Printf("Failed to connect to %s runtime: %v\n", runtimeType, err)
+			os.Exit(1)
+		}
+		defer rt.Close()
+
+		// Revert network and resource chaos
+		rt.CleanupAll(context.Background())
+		pterm.Success.Println("Network and resource chaos rules cleared.")
+
+		// Attempt to unpause any paused containers (Docker only)
+		if runtimeType == "docker" || runtimeType == "" {
+			containers, err := rt.ListContainers(context.Background(), true)
+			if err == nil {
+				for _, c := range containers {
+					if c.Status == "paused" {
+						pterm.Info.Printf("Unpausing container: %s\n", c.Name)
+						_, _ = rt.UnpauseContainer(context.Background(), c.Name)
+					}
+				}
+			}
+		}
+
+		pterm.Success.Println("Emergency cleanup complete.")
 	},
 }
