@@ -12,7 +12,7 @@ Set Theme "Catppuccin Macchiato"
 Hide
 Type "export PATH=$PATH:$(go env GOPATH)/bin"
 Enter
-Type "cd examples/demo-distributed"
+Type "cd examples/demo-distributed && rm -f chaos.yaml"
 Enter
 Ctrl+L
 Show
