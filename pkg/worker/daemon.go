@@ -41,7 +41,7 @@ func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *
 
 	onEvent := func(e utils.EventRecord) {
 		status := chaosEngine.Status()
-		_ = state.Write(&utils.EngineState{
+		err := state.Write(&utils.EngineState{
 			PID:               myPid,
 			StartedAt:         startedAt,
 			ConfigPath:        configPath,
@@ -53,11 +53,14 @@ func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *
 			LastEvent:         status.LastEvent,
 			History:           status.History,
 		})
+		if err != nil {
+			logger.LogError("Failed to write state file: " + err.Error())
+		}
 	}
 
 	chaosEngine = engine.NewChaosEngine(cfg, runtimeType, onEvent, logger)
 
-	_ = state.Write(&utils.EngineState{
+	err = state.Write(&utils.EngineState{
 		PID:               myPid,
 		StartedAt:         startedAt,
 		ConfigPath:        configPath,
@@ -69,6 +72,9 @@ func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *
 		LastEvent:         nil,
 		History:           []utils.EventRecord{},
 	})
+	if err != nil {
+		logger.LogError("Failed to initialize state file: " + err.Error())
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -79,6 +85,8 @@ func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *
 
 	<-c
 	chaosEngine.Stop()
-	_ = state.Clear()
+	if err := state.Clear(); err != nil {
+		logger.LogError("Failed to clear state file on exit: " + err.Error())
+	}
 	return nil
 }
