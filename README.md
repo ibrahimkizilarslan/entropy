@@ -29,6 +29,19 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 - **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes ephemeral containers) leaving your system pristine.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
+## Why Entropy?
+
+Unlike traditional chaos engineering tools that are often heavy, Kubernetes-only, or require complex control planes, Entropy is built specifically for developer agility.
+
+| Feature | Entropy | Chaos Mesh | LitmusChaos | Chaos Monkey |
+|---------|---------|------------|-------------|--------------|
+| **Target Runtime** | Docker & Kubernetes | K8s only | K8s only | AWS / Spinnaker |
+| **Architecture** | Agentless (Ephemeral/Exec) | DaemonSet | DaemonSet / CRDs | Agent / API |
+| **Setup Complexity** | Zero-config (Single binary) | High (Helm + CRDs) | High (Helm + CRDs) | High |
+| **Local Testing** | ✅ First-class support | ❌ Difficult | ❌ Difficult | ❌ No |
+| **Scenario DSL** | ✅ Yes (YAML) | ✅ Yes | ✅ Yes | ❌ Random only |
+| **SSRF Protection** | ✅ Built-in | ❌ Manual | ❌ Manual | ❌ N/A |
+
 ## Architecture & Vision
 
 Entropy acts as the chaos injection layer for modern dev and staging environments. By simulating real-world catastrophic failures (database crashes, network partitions, CPU starvation), developers can implement patterns like *Graceful Degradation* and *Circuit Breaking* effectively.
@@ -183,6 +196,7 @@ Available Commands:
   status      Show the status of the chaos engine
   stop        Stop a running background chaos engine
   topology    Visualize the cluster topology and blast radius
+  validate    Validate a chaos configuration file without executing it
 ```
 
 ### 5. End-to-End Smoke Test
