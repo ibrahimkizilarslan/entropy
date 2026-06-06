@@ -6,18 +6,26 @@ services:
       - "8085:8080"
     depends_on:
       - catalog-service
+    networks:
+      - frontend
+      - backend
 
   # --- CATALOG (.NET) ---
   catalog-service:
     build: ./catalog-service
     depends_on:
       - catalog-db
+    networks:
+      - backend
+      - data
 
   catalog-db:
     image: postgres:15-alpine
     environment:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: catalog
+    networks:
+      - data
 
   # --- CART (Python) ---
   cart-service:
@@ -26,9 +34,14 @@ services:
       - "8081:80" # Exposed directly for independent testing if needed
     depends_on:
       - cart-db
+    networks:
+      - backend
+      - data
 
   cart-db:
     image: redis:alpine
+    networks:
+      - data
 
   # --- AUTH (Node) ---
   auth-service:
@@ -37,6 +50,16 @@ services:
       - "8082:80" # Exposed directly for independent testing if needed
     depends_on:
       - auth-db
+    networks:
+      - backend
+      - data
 
   auth-db:
     image: mongo:latest
+    networks:
+      - data
+
+networks:
+  frontend:
+  backend:
+  data:
