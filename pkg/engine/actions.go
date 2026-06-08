@@ -48,7 +48,7 @@ func (m *ResourceChaosManager) ClearAll() {
 
 type ActionHandler func(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error)
 
-var ActionHandlers = map[string]ActionHandler{
+var actionHandlers = map[string]ActionHandler{
 	"stop":         actionStop,
 	"restart":      actionRestart,
 	"pause":        actionPause,
@@ -56,6 +56,21 @@ var ActionHandlers = map[string]ActionHandler{
 	"loss":         actionLoss,
 	"limit_cpu":    actionLimitCPU,
 	"limit_memory": actionLimitMemory,
+}
+
+// GetSupportedActions returns a list of all action names supported by the engine.
+func GetSupportedActions() []string {
+	actions := make([]string, 0, len(actionHandlers))
+	for k := range actionHandlers {
+		actions = append(actions, k)
+	}
+	return actions
+}
+
+// GetActionHandler returns the handler for a given action name.
+func GetActionHandler(name string) (ActionHandler, bool) {
+	handler, ok := actionHandlers[name]
+	return handler, ok
 }
 
 func actionStop(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error) {
@@ -110,7 +125,7 @@ func actionLimitMemory(ctx context.Context, client ContainerRuntime, target stri
 }
 
 func Dispatch(ctx context.Context, action config.ActionSpec, client ContainerRuntime, target string) (*ContainerInfo, error) {
-	handler, ok := ActionHandlers[action.Name]
+	handler, ok := actionHandlers[action.Name]
 	if !ok {
 		return nil, fmt.Errorf("unknown action '%s'", action.Name)
 	}
