@@ -8,6 +8,23 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+// MaxConfigFileSize is the maximum allowed size for YAML config and scenario files (1 MB).
+// This prevents denial-of-service via oversized or malicious YAML files (e.g., YAML bombs).
+const MaxConfigFileSize = 1 * 1024 * 1024
+
+// validateFileSize checks that the file at the given path does not exceed MaxConfigFileSize.
+func validateFileSize(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.Size() > MaxConfigFileSize {
+		return fmt.Errorf("file '%s' is too large (%d bytes, max %d bytes). This limit prevents DoS via oversized YAML",
+			path, info.Size(), MaxConfigFileSize)
+	}
+	return nil
+}
+
 func setDefaults(cfg *ChaosConfig) {
 	if cfg.Safety.MaxDown == 0 {
 		cfg.Safety.MaxDown = 1
@@ -47,6 +64,9 @@ func LoadConfig(path string) (*ChaosConfig, error) {
 	if path == "" {
 		path = "chaos.yaml"
 	}
+	if err := validateFileSize(path); err != nil {
+		return nil, fmt.Errorf("config file validation failed: %w", err)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("config file not found: '%s'\n  → Copy chaos.example.yaml to chaos.yaml and edit it", path)
@@ -66,6 +86,9 @@ func LoadConfig(path string) (*ChaosConfig, error) {
 }
 
 func LoadScenario(path string) (*ScenarioConfig, error) {
+	if err := validateFileSize(path); err != nil {
+		return nil, fmt.Errorf("scenario file validation failed: %w", err)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("scenario file not found: '%s'", path)

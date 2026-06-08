@@ -46,15 +46,20 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 		return nil, fmt.Errorf("refusing to run in production environment. Set ENTROPY_ALLOW_PRODUCTION=true to override")
 	}
 
+	// Build config and clientset from a single source of truth.
+	// Previously, buildK8sConfig() and newK8sClientSet() were called separately,
+	// creating two independent configs that could theoretically diverge.
 	config, err := buildK8sConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	clientset, ns, err := newK8sClientSet("")
+	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
+
+	ns := resolveNamespace("")
 
 	var allowed map[string]bool
 	if allowedTargets != nil {
@@ -225,13 +230,24 @@ func (k *KubernetesClient) injectEphemeralNetshoot(ctx context.Context, pod *cor
 		}
 	}
 
-	// Make the netshoot image configurable for air-gapped environments
+	// Make the netshoot image configurable for air-gapped environments.
+	// SECURITY: Default is pinned to a specific version tag instead of :latest
+	// to prevent supply chain attacks via mutable image tags.
+	// For maximum security, use a digest: ENTROPY_NETSHOOT_IMAGE=nicolaka/netshoot@sha256:<hash>
 	netshootImage := os.Getenv("ENTROPY_NETSHOOT_IMAGE")
 	if netshootImage == "" {
-		netshootImage = "nicolaka/netshoot:latest"
+		netshootImage = "nicolaka/netshoot:v0.13"
 	}
 
-	// Build the ephemeral container spec
+	// SECURITY: Hardened security context for the ephemeral container.
+	// NET_ADMIN is the only capability granted (required for tc/netem).
+	// All other capabilities are explicitly dropped to minimize the attack surface.
+	allowPrivEsc := false
+	readOnlyFS := true
+	runAsNonRoot := true
+	var runAsUser int64 = 1000
+
+	// Build the ephemeral container spec with hardened security
 	ec := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            "chaos-netshoot",
@@ -239,8 +255,13 @@ func (k *KubernetesClient) injectEphemeralNetshoot(ctx context.Context, pod *cor
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: &corev1.SecurityContext{
 				Capabilities: &corev1.Capabilities{
-					Add: []corev1.Capability{"NET_ADMIN"},
+					Add:  []corev1.Capability{"NET_ADMIN"},
+					Drop: []corev1.Capability{"ALL"},
 				},
+				AllowPrivilegeEscalation: &allowPrivEsc,
+				ReadOnlyRootFilesystem:   &readOnlyFS,
+				RunAsNonRoot:             &runAsNonRoot,
+				RunAsUser:                &runAsUser,
 			},
 			TTY:     false,
 			Stdin:   false,

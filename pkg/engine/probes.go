@@ -3,14 +3,55 @@ package engine
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
+
+// blockedExecCommands contains executable names that are blocked from exec probes
+// to prevent remote code execution via user-supplied scenario YAML files.
+// These commands can be used to establish reverse shells, exfiltrate data,
+// or pivot within the network.
+var blockedExecCommands = []string{
+	"sh", "bash", "zsh", "ash", "csh", "ksh", "dash", "fish",   // Shells
+	"curl", "wget",                                               // Data exfiltration / download
+	"nc", "ncat", "netcat", "socat",                              // Network pivoting
+	"python", "python3", "python2", "perl", "ruby", "node",      // Script interpreters
+	"php", "lua",                                                  // Script interpreters
+	"chmod", "chown", "chroot",                                    // Permission manipulation
+	"mount", "umount",                                             // Filesystem manipulation
+	"dd", "mkfs",                                                  // Disk operations
+	"rm", "rmdir",                                                 // Destructive operations
+	"nslookup", "dig",                                             // DNS reconnaissance
+	"ssh", "scp", "sftp",                                          // Remote access
+}
+
+// validateExecCommand checks that the command's base executable is not in the blocklist.
+// This prevents using exec probes as an RCE vector through scenario YAML files.
+func validateExecCommand(cmdParts []string) error {
+	if len(cmdParts) == 0 {
+		return fmt.Errorf("empty exec command")
+	}
+
+	// Extract the base name of the executable (handles absolute paths like /bin/sh)
+	executable := filepath.Base(cmdParts[0])
+
+	for _, blocked := range blockedExecCommands {
+		if strings.EqualFold(executable, blocked) {
+			return fmt.Errorf("exec probe command '%s' is blocked for security. "+
+				"Blocked executables include shells, interpreters, and network tools. "+
+				"Use simple diagnostic commands like 'cat', 'ls', 'stat', or 'test'", executable)
+		}
+	}
+
+	return nil
+}
 
 type ProbeResult struct {
 	Success bool
@@ -214,6 +255,18 @@ func runExecProbe(ctx context.Context, spec *config.ProbeSpec, runtime Container
 	if len(cmdParts) == 0 {
 		return ProbeResult{Success: false, Message: "empty exec command"}
 	}
+
+	// Security: block dangerous executables to prevent RCE via scenario YAML
+	if err := validateExecCommand(cmdParts); err != nil {
+		return ProbeResult{Success: false, Message: fmt.Sprintf("security: %v", err)}
+	}
+
+	// Audit logging: log every exec probe invocation for security monitoring
+	slog.Warn("EXEC_PROBE",
+		slog.String("target", spec.Target),
+		slog.String("command", spec.Command),
+		slog.String("executable", filepath.Base(cmdParts[0])),
+	)
 
 	exitCode, err := runtime.ExecCommand(ctx, spec.Target, cmdParts)
 	if err != nil {
