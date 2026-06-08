@@ -40,7 +40,7 @@ func TestActionHandlersMapExists(t *testing.T) {
 	}
 
 	for _, action := range expectedActions {
-		if _, ok := engine.ActionHandlers[action]; !ok {
+		if _, ok := engine.GetActionHandler(action); !ok {
 			t.Errorf("Action %q not found in ActionHandlers", action)
 		}
 	}
@@ -96,7 +96,7 @@ func TestDispatchWithValidAction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, ok := engine.ActionHandlers[tt.actionName]
+			handler, ok := engine.GetActionHandler(tt.actionName)
 
 			if tt.shouldExist && !ok {
 				t.Errorf("Action %q should exist in ActionHandlers", tt.actionName)

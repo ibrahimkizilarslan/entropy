@@ -50,7 +50,7 @@ func TestActionHandlersMapExists(t *testing.T) {
 	}
 
 	for _, action := range expectedActions {
-		if _, ok := ActionHandlers[action]; !ok {
+		if _, ok := GetActionHandler(action); !ok {
 			t.Errorf("Action %q not found in ActionHandlers", action)
 		}
 	}

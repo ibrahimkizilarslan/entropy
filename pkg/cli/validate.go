@@ -24,11 +24,7 @@ var validateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := cfg.Validate(); err != nil {
-			pterm.Error.Printf("Config is invalid: %v\n", err)
-			os.Exit(1)
-		}
-
+		// LoadConfig implicitly calls Validate(), so no need to call it again.
 		pterm.Success.Println("Configuration is valid.")
 		
 		fmt.Printf("\nSummary:\n")

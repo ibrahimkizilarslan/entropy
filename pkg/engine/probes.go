@@ -37,7 +37,7 @@ var metadataDenyList = []string{
 // allowPrivateNetworks controls whether probes can reach private network ranges.
 // In chaos engineering, probes legitimately target local containers, so private
 // networks are allowed by default. Only cloud metadata endpoints are always blocked.
-var allowPrivateNetworks = true
+const allowPrivateNetworks = true
 
 // validateProbeURL checks the target URL against the deny-list to prevent SSRF attacks.
 // Cloud metadata endpoints (169.254.169.254) are always blocked.
