@@ -259,7 +259,11 @@ func (e *ChaosEngine) runCycle(ctx context.Context, runtime ContainerRuntime) {
 	e.lastEvent = &event
 	e.history = append(e.history, event)
 	if len(e.history) > MaxHistorySize {
-		e.history = e.history[len(e.history)-MaxHistorySize:]
+		// Prevent memory leak by creating a new slice instead of just slicing
+		// which would keep the underlying ever-growing array in memory.
+		trimmed := make([]utils.EventRecord, MaxHistorySize)
+		copy(trimmed, e.history[len(e.history)-MaxHistorySize:])
+		e.history = trimmed
 	}
 	e.mu.Unlock()
 

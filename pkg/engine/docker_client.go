@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 )
 
@@ -22,6 +24,14 @@ type DockerClient struct {
 	allowedTargets  map[string]bool
 	networkManager  *NetworkChaosManager
 	resourceManager *ResourceChaosManager
+
+	idCache   map[string]cachedEntry
+	idCacheMu sync.RWMutex
+}
+
+type cachedEntry struct {
+	id        string
+	expiresAt time.Time
 }
 
 func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient, error) {
@@ -47,6 +57,7 @@ func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient,
 		allowedTargets:  allowed,
 		networkManager:  NewNetworkChaosManager(),
 		resourceManager: NewResourceChaosManager(),
+		idCache:         make(map[string]cachedEntry),
 	}, nil
 }
 
@@ -125,23 +136,59 @@ func (d *DockerClient) assertAllowed(name string) error {
 }
 
 func (d *DockerClient) getContainerID(ctx context.Context, name string) (string, error) {
+	d.idCacheMu.RLock()
+	entry, ok := d.idCache[name]
+	d.idCacheMu.RUnlock()
+	if ok && time.Now().Before(entry.expiresAt) {
+		return entry.id, nil
+	}
+
+	// Try finding by name filter first (O(1) on Docker daemon side vs O(N))
+	args := filters.NewArgs()
+	args.Add("name", "^/?"+name+"$")
 	containers, err := d.cli.ContainerList(ctx, types.ContainerListOptions{
-		All: true,
+		All:     true,
+		Filters: args,
 	})
 	if err != nil {
 		return "", err
 	}
+
+	if len(containers) == 0 {
+		// Fallback to compose service label filter
+		args = filters.NewArgs()
+		args.Add("label", "com.docker.compose.service="+name)
+		containers, err = d.cli.ContainerList(ctx, types.ContainerListOptions{
+			All:     true,
+			Filters: args,
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+
 	for _, c := range containers {
 		for _, n := range c.Names {
 			if strings.TrimPrefix(n, "/") == name {
+				d.cacheID(name, c.ID)
 				return c.ID, nil
 			}
 		}
 		if c.Labels["com.docker.compose.service"] == name {
+			d.cacheID(name, c.ID)
 			return c.ID, nil
 		}
 	}
 	return "", fmt.Errorf("container not found: %s", name)
+}
+
+func (d *DockerClient) cacheID(name, id string) {
+	d.idCacheMu.Lock()
+	defer d.idCacheMu.Unlock()
+	d.idCache[name] = cachedEntry{
+		id:        id,
+		expiresAt: time.Now().Add(30 * time.Second),
+	}
 }
 
 func (d *DockerClient) getContainerInfo(ctx context.Context, id string) (*ContainerInfo, error) {
@@ -343,7 +390,9 @@ func (d *DockerClient) ExecCommand(ctx context.Context, name string, cmd []strin
 	}
 
 	// Poll until the exec command finishes, respecting context cancellation
-	for i := 0; i < 50; i++ { // max 5 seconds wait (50 * 100ms)
+	// using exponential backoff to reduce CPU usage
+	delay := 50 * time.Millisecond
+	for i := 0; i < 50; i++ { 
 		select {
 		case <-ctx.Done():
 			return -1, fmt.Errorf("exec cancelled in container %s: %w", name, ctx.Err())
@@ -356,7 +405,10 @@ func (d *DockerClient) ExecCommand(ctx context.Context, name string, cmd []strin
 		if !inspectResp.Running {
 			return inspectResp.ExitCode, nil
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(delay)
+		if delay < 500 * time.Millisecond {
+			delay *= 2
+		}
 	}
 
 	return -1, fmt.Errorf("timeout waiting for exec command to complete in container %s", name)
