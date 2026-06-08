@@ -81,24 +81,36 @@ func (k *KubernetesClient) assertAllowed(name string) error {
 	return nil
 }
 
-// findPod finds a pod by label "app=name" or name prefix, respecting context cancellation.
 func (k *KubernetesClient) findPod(ctx context.Context, name string) (*corev1.Pod, error) {
-	// Try label selector first (most reliable for Deployments/StatefulSets)
-	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", name),
-	})
-	if err == nil && len(pods.Items) > 0 {
-		// Prefer Running pods
-		for _, p := range pods.Items {
-			if p.Status.Phase == corev1.PodRunning && p.DeletionTimestamp == nil {
-				return &p, nil
-			}
-		}
-		return &pods.Items[0], nil
+	// Try exact pod name match first (O(1) API call)
+	p, err := k.clientset.CoreV1().Pods(k.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err == nil && p.DeletionTimestamp == nil && p.Status.Phase == corev1.PodRunning {
+		return p, nil
 	}
 
-	// Fallback: find by name prefix
-	pods, err = k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{})
+	// Try common label selectors (Server-side filtering, much faster than listing all)
+	selectors := []string{
+		fmt.Sprintf("app=%s", name),
+		fmt.Sprintf("app.kubernetes.io/name=%s", name),
+	}
+
+	for _, selector := range selectors {
+		pods, err := k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		if err == nil && len(pods.Items) > 0 {
+			// Prefer Running pods
+			for _, p := range pods.Items {
+				if p.Status.Phase == corev1.PodRunning && p.DeletionTimestamp == nil {
+					return &p, nil
+				}
+			}
+			return &pods.Items[0], nil
+		}
+	}
+
+	// Fallback: find by name prefix (expensive in large namespaces)
+	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pods in namespace '%s': %w", k.namespace, err)
 	}
@@ -255,7 +267,9 @@ func (k *KubernetesClient) injectEphemeralNetshoot(ctx context.Context, pod *cor
 	}
 
 	// Wait for the ephemeral container to become Running (up to 30 seconds)
+	// using exponential backoff to reduce API server load
 	deadline := time.Now().Add(30 * time.Second)
+	delay := 100 * time.Millisecond
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
@@ -277,7 +291,10 @@ func (k *KubernetesClient) injectEphemeralNetshoot(ctx context.Context, pod *cor
 			}
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(delay)
+		if delay < 2 * time.Second {
+			delay *= 2
+		}
 	}
 
 	return fmt.Errorf("timeout: chaos-netshoot container in pod '%s' did not become Running within 30s", pod.Name)
