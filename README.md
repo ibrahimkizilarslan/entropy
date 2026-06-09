@@ -9,9 +9,9 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
 [![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy?include_prereleases)](https://github.com/ibrahimkizilarslan/entropy/releases)
 
-> ⚠️ **v2.0.0-BETA.1 STATUS WARNING**  
-> Entropy is currently undergoing a massive security and architectural overhaul in preparation for `v2.0.0` (Stable).  
-> **Known Limitation (Orphaned Chaos):** The engine currently lacks a persistent fault registry. If the `entropy` daemon crashes during an active injection, injected faults (like network delays) will remain active and must be manually cleaned up. **Do not use this beta release in unsupervised production environments.**
+> 🚀 **v2.0.0 STABLE RELEASED**  
+> Entropy `v2.0.0` is now stable and introduces a completely **Crash-Safe Architecture**. 
+> The engine now features a Persistent Fault Registry (WAL) that guarantees zero orphaned chaos. If the daemon crashes, it will automatically recover and clean up your infrastructure on the next boot.
 
 Entropy is a **developer-first, platform-agnostic chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
@@ -33,14 +33,15 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 - **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes ephemeral containers) leaving your system pristine.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
 
-## Road to v2.0.0 (Stable)
+## v2.0.0 Stable: Crash-Safe Architecture
 
-We are actively working towards the **v2.0.0 Stable** release. The primary focus of this upcoming release is ensuring **Crash-Safety and Zero Orphaned Chaos**.
+With the release of **v2.0.0**, Entropy has evolved into a fully crash-safe, production-ready chaos engineering engine. The primary focus of this release is ensuring **Zero Orphaned Chaos**.
 
-**Upcoming Architecture:**
-- **Persistent Fault Registry (WAL/State File):** Entropy will maintain a durable record of all active chaos injections.
-- **Auto-Recovery on Boot:** If the `entropy` daemon process is OOM-killed or restarted, it will read the fault registry upon booting, discover orphaned chaos rules on the cluster, and automatically revert them.
-- **Kubernetes CRD Integration (Planned):** Transitioning from client-side state tracking to Kubernetes Custom Resource Definitions for ultimate reliability in K8s environments.
+**Key Architectural Advancements:**
+- **Persistent Fault Registry (WAL/State File):** Entropy maintains a durable, atomic record of all active chaos injections (stored locally at `~/.entropy/registry.json`).
+- **Auto-Recovery on Boot:** If the `entropy` daemon process is OOM-killed, forcefully terminated (`kill -9`), or unexpectedly restarted, it will read the fault registry upon booting, discover orphaned chaos rules on the cluster/docker engine, and automatically revert them before starting a new session.
+- **Background Expiry Watcher:** A background garbage collector continuously monitors for any chaos injections that failed to revert due to goroutine scheduling issues or system hangs, providing an extra layer of safety.
+- **Unified Local State:** We unified state tracking for BOTH Docker and Kubernetes targets via local WAL. This keeps Entropy dependency-free and avoids the need for cluster-admin privileges (no CRDs required).
 
 ## Why Entropy?
 
