@@ -15,6 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+
+	"github.com/ibrahimkizilarslan/entropy/pkg/registry"
 )
 
 // KubernetesClient implements the ContainerRuntime interface for Kubernetes clusters.
@@ -77,6 +79,13 @@ func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
 		resourceManager: NewResourceChaosManager(),
 		networkManager:  NewNetworkChaosManager(),
 	}, nil
+}
+
+// SetRegistry wires the persistent fault registry into the chaos managers.
+// Must be called before chaos injection begins.
+func (k *KubernetesClient) SetRegistry(r *registry.FaultRegistry) {
+	k.networkManager.SetRegistry(r)
+	k.resourceManager.SetRegistry(r)
 }
 
 func (k *KubernetesClient) assertAllowed(name string) error {
@@ -465,8 +474,14 @@ func (k *KubernetesClient) ExecCommand(ctx context.Context, name string, cmd []s
 	return k.execInContainer(ctx, p.Name, containerName, cmd)
 }
 
-func (k *KubernetesClient) ScheduleResourceRestore(ctx context.Context, target string, duration int) {
-	k.resourceManager.ScheduleRestore(k, target, duration)
+func (k *KubernetesClient) ScheduleResourceRestore(ctx context.Context, target string, faultType registry.FaultType, duration int, cpuQuota, cpuPeriod, memLimit int64) {
+	k.resourceManager.ScheduleRestore(k, target, faultType, duration, cpuQuota, cpuPeriod, memLimit)
+}
+
+// RevertResources resets all resource limits to unlimited. Satisfies registry.Reverter.
+func (k *KubernetesClient) RevertResources(ctx context.Context, target string) error {
+	_, err := k.UpdateContainerResources(ctx, target, 0, 0, 0)
+	return err
 }
 
 func (k *KubernetesClient) CleanupAll(ctx context.Context) {

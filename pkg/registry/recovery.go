@@ -9,14 +9,15 @@ import (
 
 // Reverter is the minimal interface the recovery engine needs to revert chaos.
 // Both DockerClient and KubernetesClient satisfy this interface.
+// It is intentionally narrow to avoid an import cycle between pkg/registry and pkg/engine.
 type Reverter interface {
 	// ExecCommand runs a command inside the target container/pod.
 	// Used to issue `tc qdisc del` for network chaos revert.
 	ExecCommand(ctx context.Context, target string, cmd []string) (int, error)
 
-	// UpdateContainerResources restores CPU/memory limits to unlimited (all-zero).
-	// Used to revert resource chaos.
-	UpdateContainerResources(ctx context.Context, target string, cpuQuota, cpuPeriod, memLimit int64) (any, error)
+	// RevertResources resets all CPU and memory limits on the target to unlimited.
+	// Used to revert resource chaos injections.
+	RevertResources(ctx context.Context, target string) error
 }
 
 // RecoveryResult holds the outcome of a single orphan revert attempt.
@@ -164,17 +165,14 @@ func revertNetworkFault(ctx context.Context, rec FaultRecord, reverter Reverter,
 }
 
 func revertCPUFault(ctx context.Context, rec FaultRecord, reverter Reverter) error {
-	// Setting cpuQuota=0, cpuPeriod=0, memLimit=0 removes all limits
-	_, err := reverter.UpdateContainerResources(ctx, rec.Target, 0, 0, 0)
-	if err != nil {
+	if err := reverter.RevertResources(ctx, rec.Target); err != nil {
 		return fmt.Errorf("CPU limit revert failed: %w", err)
 	}
 	return nil
 }
 
 func revertMemoryFault(ctx context.Context, rec FaultRecord, reverter Reverter) error {
-	_, err := reverter.UpdateContainerResources(ctx, rec.Target, 0, 0, 0)
-	if err != nil {
+	if err := reverter.RevertResources(ctx, rec.Target); err != nil {
 		return fmt.Errorf("memory limit revert failed: %w", err)
 	}
 	return nil

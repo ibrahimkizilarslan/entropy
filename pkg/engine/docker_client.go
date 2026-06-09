@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/ibrahimkizilarslan/entropy/pkg/registry"
 )
 
 // DockerClient implements the ContainerRuntime interface for Docker.
@@ -59,6 +60,13 @@ func tryConnectWithOpts(allowedTargets []string, opt client.Opt) (*DockerClient,
 		resourceManager: NewResourceChaosManager(),
 		idCache:         make(map[string]cachedEntry),
 	}, nil
+}
+
+// SetRegistry wires the persistent fault registry into the chaos managers.
+// Must be called before chaos injection begins.
+func (d *DockerClient) SetRegistry(r *registry.FaultRegistry) {
+	d.networkManager.SetRegistry(r)
+	d.resourceManager.SetRegistry(r)
 }
 
 func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
@@ -428,8 +436,14 @@ func (d *DockerClient) InjectNetworkLoss(ctx context.Context, target string, los
 	return d.networkManager.InjectLoss(ctx, d, target, lossPercent, duration)
 }
 
-func (d *DockerClient) ScheduleResourceRestore(ctx context.Context, target string, duration int) {
-	d.resourceManager.ScheduleRestore(d, target, duration)
+func (d *DockerClient) ScheduleResourceRestore(ctx context.Context, target string, faultType registry.FaultType, duration int, cpuQuota, cpuPeriod, memLimit int64) {
+	d.resourceManager.ScheduleRestore(d, target, faultType, duration, cpuQuota, cpuPeriod, memLimit)
+}
+
+// RevertResources resets all resource limits to unlimited. Satisfies registry.Reverter.
+func (d *DockerClient) RevertResources(ctx context.Context, target string) error {
+	_, err := d.UpdateContainerResources(ctx, target, 0, 0, 0)
+	return err
 }
 
 func (d *DockerClient) CleanupAll(ctx context.Context) {

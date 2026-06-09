@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/registry"
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
@@ -139,6 +141,30 @@ func (e *ChaosEngine) runLoop() {
 	// Create a cancellable context tied to the engine's stop signal
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Open the persistent fault registry and attach it to the runtime
+	registryPath := os.Getenv("ENTROPY_REGISTRY_PATH")
+	reg, regErr := registry.Open(registryPath)
+	if regErr != nil {
+		if e.logger != nil {
+			e.logger.LogError(fmt.Sprintf("failed to open fault registry: %v — crash-recovery disabled", regErr))
+		}
+	} else {
+		// Wire registry into the runtime's chaos managers
+		type registryAware interface {
+			SetRegistry(r *registry.FaultRegistry)
+		}
+		if ra, ok := runtime.(registryAware); ok {
+			ra.SetRegistry(reg)
+		}
+
+		// Recover any orphaned chaos from a previous crash before starting fresh
+		if runtime != nil {
+			allowedTargets := e.config.Targets
+			reg.RecoverOrphans(ctx, allowedTargets, runtime, os.Getenv("ENTROPY_NET_INTERFACE"))
+		}
+	}
+
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()

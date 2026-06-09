@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
+	"github.com/ibrahimkizilarslan/entropy/pkg/registry"
 )
 
 func TestNewResourceChaosManager(t *testing.T) {
@@ -25,8 +26,8 @@ func TestResourceChaosManagerClearAll(t *testing.T) {
 	manager := NewResourceChaosManager()
 	mock := NewMockRuntime()
 	// Schedule some restores and then clear all
-	manager.ScheduleRestore(mock, "target-1", 3600)
-	manager.ScheduleRestore(mock, "target-2", 3600)
+	manager.ScheduleRestore(mock, "target-1", registry.FaultTypeCPULimit, 3600, 50000, 100000, 0)
+	manager.ScheduleRestore(mock, "target-2", registry.FaultTypeCPULimit, 3600, 50000, 100000, 0)
 
 	manager.ClearAll()
 

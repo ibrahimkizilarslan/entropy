@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/ibrahimkizilarslan/entropy/pkg/registry"
 )
 
 // MockRuntime is a test double implementing ContainerRuntime.
@@ -141,8 +143,13 @@ func (m *MockRuntime) UpdateContainerResources(ctx context.Context, name string,
 	return info, nil
 }
 
-func (m *MockRuntime) ScheduleResourceRestore(ctx context.Context, target string, duration int) {
-	m.record("ScheduleResourceRestore", target, duration)
+func (m *MockRuntime) ScheduleResourceRestore(ctx context.Context, target string, faultType registry.FaultType, duration int, cpuQuota, cpuPeriod, memLimit int64) {
+	m.record("ScheduleResourceRestore", target, faultType, duration)
+}
+
+func (m *MockRuntime) RevertResources(ctx context.Context, target string) error {
+	m.record("RevertResources", target)
+	return nil
 }
 
 func (m *MockRuntime) CleanupAll(ctx context.Context) {

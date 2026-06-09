@@ -278,9 +278,9 @@ func TestIsExpired_Past(t *testing.T) {
 // mockReverter implements the Reverter interface for testing recovery logic.
 type mockReverter struct {
 	execCalls   []string // captures ExecCommand target calls
-	updateCalls []string // captures UpdateContainerResources target calls
+	revertCalls []string // captures RevertResources target calls
 	execErr     error
-	updateErr   error
+	revertErr   error
 }
 
 func (m *mockReverter) ExecCommand(_ context.Context, target string, _ []string) (int, error) {
@@ -291,12 +291,9 @@ func (m *mockReverter) ExecCommand(_ context.Context, target string, _ []string)
 	return 0, nil
 }
 
-func (m *mockReverter) UpdateContainerResources(_ context.Context, target string, _, _, _ int64) (any, error) {
-	m.updateCalls = append(m.updateCalls, target)
-	if m.updateErr != nil {
-		return nil, m.updateErr
-	}
-	return nil, nil
+func (m *mockReverter) RevertResources(_ context.Context, target string) error {
+	m.revertCalls = append(m.revertCalls, target)
+	return m.revertErr
 }
 
 func TestRecoverOrphans_RevertsNetworkFault(t *testing.T) {
@@ -351,8 +348,8 @@ func TestRecoverOrphans_RevertsCPUFault(t *testing.T) {
 	if len(results) != 1 || !results[0].Reverted {
 		t.Errorf("expected 1 reverted result, got %+v", results)
 	}
-	if len(mock.updateCalls) != 1 || mock.updateCalls[0] != "svc-a" {
-		t.Errorf("expected 1 UpdateContainerResources call on svc-a, got %v", mock.updateCalls)
+	if len(mock.revertCalls) != 1 || mock.revertCalls[0] != "svc-a" {
+		t.Errorf("expected 1 RevertResources call on svc-a, got %v", mock.revertCalls)
 	}
 }
 
