@@ -301,7 +301,7 @@ func TestRecoverOrphans_RevertsNetworkFault(t *testing.T) {
 	_, _ = reg.Write(makeRecord("svc-a", FaultTypeNetworkDelay))
 
 	mock := &mockReverter{}
-	results := reg.RecoverOrphans(context.Background(), []string{"svc-a"}, mock, "eth0")
+	results := reg.RecoverOrphans(context.Background(), "docker", []string{"svc-a"}, false, mock, "eth0")
 
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -324,7 +324,7 @@ func TestRecoverOrphans_SkipsTargetsNotInConfig(t *testing.T) {
 	_, _ = reg.Write(makeRecord("svc-old", FaultTypeNetworkDelay)) // NOT in allowed list
 
 	mock := &mockReverter{}
-	results := reg.RecoverOrphans(context.Background(), []string{"svc-a"}, mock, "eth0")
+	results := reg.RecoverOrphans(context.Background(), "docker", []string{"svc-a"}, false, mock, "eth0")
 
 	if len(results) != 0 {
 		t.Errorf("expected 0 results (target not in config), got %d", len(results))
@@ -343,7 +343,7 @@ func TestRecoverOrphans_RevertsCPUFault(t *testing.T) {
 	_, _ = reg.Write(makeRecord("svc-a", FaultTypeCPULimit))
 
 	mock := &mockReverter{}
-	results := reg.RecoverOrphans(context.Background(), []string{"svc-a"}, mock, "eth0")
+	results := reg.RecoverOrphans(context.Background(), "docker", []string{"svc-a"}, false, mock, "eth0")
 
 	if len(results) != 1 || !results[0].Reverted {
 		t.Errorf("expected 1 reverted result, got %+v", results)
@@ -357,7 +357,7 @@ func TestRecoverOrphans_NoOrphans(t *testing.T) {
 	reg, _ := newTempRegistry(t)
 
 	mock := &mockReverter{}
-	results := reg.RecoverOrphans(context.Background(), []string{"svc-a"}, mock, "eth0")
+	results := reg.RecoverOrphans(context.Background(), "docker", []string{"svc-a"}, false, mock, "eth0")
 
 	if results != nil {
 		t.Errorf("expected nil results for empty registry, got %v", results)
@@ -370,7 +370,7 @@ func TestRecoverOrphans_SkipsAlreadyReverted(t *testing.T) {
 	_ = reg.MarkReverted(id)
 
 	mock := &mockReverter{}
-	results := reg.RecoverOrphans(context.Background(), []string{"svc-a"}, mock, "eth0")
+	results := reg.RecoverOrphans(context.Background(), "docker", []string{"svc-a"}, false, mock, "eth0")
 
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for already-reverted record, got %d", len(results))

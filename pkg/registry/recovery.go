@@ -30,14 +30,15 @@ type RecoveryResult struct {
 }
 
 // RecoverOrphans scans the registry for active (non-reverted) faults whose targets
-// are present in the allowedTargets list, and attempts to revert each one.
+// are present in the allowedTargets list (unless recoverAll is true), and attempts to revert each one.
 //
-// Scope rule: only targets in allowedTargets are recovered. This prevents
+// Scope rule: if recoverAll is false, only targets in allowedTargets are recovered. This prevents
 // accidental revert of chaos injected by a different session or different config.
+// If recoverAll is true, all active faults are recovered regardless of allowedTargets.
 //
 // It is designed to be called once at engine boot, before the main chaos loop begins.
 // It logs all outcomes via slog and returns a summary of results.
-func (r *FaultRegistry) RecoverOrphans(ctx context.Context, allowedTargets []string, reverter Reverter, netIface string) []RecoveryResult {
+func (r *FaultRegistry) RecoverOrphans(ctx context.Context, currentRuntime string, allowedTargets []string, recoverAll bool, reverter Reverter, netIface string) []RecoveryResult {
 	allowed := make(map[string]bool, len(allowedTargets))
 	for _, t := range allowedTargets {
 		allowed[t] = true
@@ -56,8 +57,13 @@ func (r *FaultRegistry) RecoverOrphans(ctx context.Context, allowedTargets []str
 	var results []RecoveryResult
 
 	for _, rec := range active {
-		// Scope filter: only recover targets that are in the current config
-		if !allowed[rec.Target] {
+		// Only attempt to recover records matching the current runtime
+		if rec.Runtime != currentRuntime {
+			continue
+		}
+
+		// Scope filter: only recover targets that are in the current config (unless recoverAll is true)
+		if !recoverAll && !allowed[rec.Target] {
 			slog.Warn("registry: skipping orphan (target not in current config)",
 				slog.String("id", rec.ID),
 				slog.String("target", rec.Target),
