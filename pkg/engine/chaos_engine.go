@@ -161,7 +161,10 @@ func (e *ChaosEngine) runLoop() {
 		// Recover any orphaned chaos from a previous crash before starting fresh
 		if runtime != nil {
 			allowedTargets := e.config.Targets
-			reg.RecoverOrphans(ctx, e.runtimeType, allowedTargets, false, runtime, os.Getenv("ENTROPY_NET_INTERFACE"))
+			netIface := os.Getenv("ENTROPY_NET_INTERFACE")
+			reg.RecoverOrphans(ctx, e.runtimeType, allowedTargets, false, runtime, netIface)
+			// Start background watcher to sweep expired faults that timers missed
+			reg.StartExpiryWatcher(ctx, e.runtimeType, runtime, netIface, 30*time.Second)
 		}
 	}
 
