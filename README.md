@@ -7,7 +7,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ibrahimkizilarslan/entropy/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
-[![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy)](https://github.com/ibrahimkizilarslan/entropy/releases)
+[![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy?include_prereleases)](https://github.com/ibrahimkizilarslan/entropy/releases)
+
+> ⚠️ **v2.0.0-BETA.1 STATUS WARNING**  
+> Entropy is currently undergoing a massive security and architectural overhaul in preparation for `v2.0.0` (Stable).  
+> **Known Limitation (Orphaned Chaos):** The engine currently lacks a persistent fault registry. If the `entropy` daemon crashes during an active injection, injected faults (like network delays) will remain active and must be manually cleaned up. **Do not use this beta release in unsupervised production environments.**
 
 Entropy is a **developer-first, platform-agnostic chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
@@ -25,9 +29,18 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 - **Enterprise Resilience Doctor:** Analyze your topology for Single Points of Failure (SPOF), missing resource limits, missing probes, and privileged containers using `entropy doctor`.
 - **Topology Visualization:** Map your system's architecture and analyze the potential blast radius of failures with `entropy topology`.
 - **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
-- **Multi-Protocol Probes:** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker/K8s Exec probes** to run raw shell commands inside containers.
+- **Multi-Protocol Probes:** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker/K8s Exec probes** to run safe diagnostic commands inside containers. *(Note: Shell execution like `sh -c` is intentionally blocked for security).*
 - **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes ephemeral containers) leaving your system pristine.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
+
+## Road to v2.0.0 (Stable)
+
+We are actively working towards the **v2.0.0 Stable** release. The primary focus of this upcoming release is ensuring **Crash-Safety and Zero Orphaned Chaos**.
+
+**Upcoming Architecture:**
+- **Persistent Fault Registry (WAL/State File):** Entropy will maintain a durable record of all active chaos injections.
+- **Auto-Recovery on Boot:** If the `entropy` daemon process is OOM-killed or restarted, it will read the fault registry upon booting, discover orphaned chaos rules on the cluster, and automatically revert them.
+- **Kubernetes CRD Integration (Planned):** Transitioning from client-side state tracking to Kubernetes Custom Resource Definitions for ultimate reliability in K8s environments.
 
 ## Why Entropy?
 
