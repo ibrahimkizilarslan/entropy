@@ -55,7 +55,7 @@ func NewStateManager(cwd string) *StateManager {
 }
 
 func (s *StateManager) EnsureDir() error {
-	return os.MkdirAll(s.dir, 0755)
+	return os.MkdirAll(s.dir, 0700)
 }
 
 func (s *StateManager) StateFile() string {

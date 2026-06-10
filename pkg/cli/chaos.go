@@ -56,7 +56,7 @@ var startCmd = &cobra.Command{
 			}
 
 			daemonCmd := exec.Command(os.Args[0], cmdArgs...)
-			logFile, err := os.OpenFile(state.LogFile(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0640)
+			logFile, err := os.OpenFile(state.LogFile(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 			if err != nil {
 				pterm.Error.Println(err)
 				os.Exit(1)
