@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -40,8 +41,10 @@ func TestStateManager_WriteAndRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to stat state file: %v", err)
 	}
-	if info.Mode().Perm() != 0600 {
-		t.Errorf("Expected file permissions 0600, got %v", info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		if info.Mode().Perm() != 0600 {
+			t.Errorf("Expected file permissions 0600, got %v", info.Mode().Perm())
+		}
 	}
 
 	readState, err := sm.Read()
