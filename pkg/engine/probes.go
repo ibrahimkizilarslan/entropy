@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,39 +15,68 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
 )
 
-// blockedExecCommands contains executable names that are blocked from exec probes
-// to prevent remote code execution via user-supplied scenario YAML files.
-// These commands can be used to establish reverse shells, exfiltrate data,
-// or pivot within the network.
-var blockedExecCommands = []string{
-	"sh", "bash", "zsh", "ash", "csh", "ksh", "dash", "fish",   // Shells
-	"curl", "wget",                                               // Data exfiltration / download
-	"nc", "ncat", "netcat", "socat",                              // Network pivoting
-	"python", "python3", "python2", "perl", "ruby", "node",      // Script interpreters
-	"php", "lua",                                                  // Script interpreters
-	"chmod", "chown", "chroot",                                    // Permission manipulation
-	"mount", "umount",                                             // Filesystem manipulation
-	"dd", "mkfs",                                                  // Disk operations
-	"rm", "rmdir",                                                 // Destructive operations
-	"nslookup", "dig",                                             // DNS reconnaissance
-	"ssh", "scp", "sftp",                                          // Remote access
+// defaultAllowedExecCommands are the only executables permitted in exec probes
+// by default. This is a deliberately narrow allowlist of read-only diagnostic
+// commands: nothing here can write files, spawn a shell, or reach the network.
+//
+// A blocklist was used previously, but blocklists are inherently incomplete:
+// commands like `env sh -c '...'`, `busybox sh`, `awk 'BEGIN{system("...")}'`,
+// or `find . -exec ...` are not shells or interpreters themselves, yet can be
+// used to obtain arbitrary code execution. An allowlist closes that class of
+// bypass by construction — anything not explicitly trusted is rejected.
+var defaultAllowedExecCommands = []string{
+	"cat", "ls", "stat", "test", "true", "false",
+	"echo", "pgrep", "ps", "head", "tail", "wc", "grep",
 }
 
-// validateExecCommand checks that the command's base executable is not in the blocklist.
-// This prevents using exec probes as an RCE vector through scenario YAML files.
+// execShellMetacharacters are characters that, if present in any argument,
+// could allow a nominally-safe command to be abused (e.g. as a wrapper that
+// still reaches a shell or writes output to an unexpected place). This is a
+// defense-in-depth check layered on top of the allowlist, not a replacement
+// for it.
+const execShellMetacharacters = ";|&`$()<>"
+
+// allowedExecCommands returns the effective allowlist: the built-in defaults
+// plus any executables added via ENTROPY_EXEC_ALLOWLIST (comma-separated).
+// This lets operators extend the allowlist for their own scenarios without
+// forking Entropy, while keeping the out-of-the-box default restrictive.
+func allowedExecCommands() map[string]bool {
+	allowed := make(map[string]bool, len(defaultAllowedExecCommands))
+	for _, c := range defaultAllowedExecCommands {
+		allowed[strings.ToLower(c)] = true
+	}
+	if extra := os.Getenv("ENTROPY_EXEC_ALLOWLIST"); extra != "" {
+		for _, c := range strings.Split(extra, ",") {
+			c = strings.ToLower(strings.TrimSpace(c))
+			if c != "" {
+				allowed[c] = true
+			}
+		}
+	}
+	return allowed
+}
+
+// validateExecCommand checks that the command's base executable is in the
+// allowlist and that no argument contains shell metacharacters. This prevents
+// using exec probes as an RCE vector through scenario YAML files.
 func validateExecCommand(cmdParts []string) error {
 	if len(cmdParts) == 0 {
 		return fmt.Errorf("empty exec command")
 	}
 
-	// Extract the base name of the executable (handles absolute paths like /bin/sh)
-	executable := filepath.Base(cmdParts[0])
+	// Extract the base name of the executable (handles absolute paths like /bin/cat)
+	executable := strings.ToLower(filepath.Base(cmdParts[0]))
 
-	for _, blocked := range blockedExecCommands {
-		if strings.EqualFold(executable, blocked) {
-			return fmt.Errorf("exec probe command '%s' is blocked for security. "+
-				"Blocked executables include shells, interpreters, and network tools. "+
-				"Use simple diagnostic commands like 'cat', 'ls', 'stat', or 'test'", executable)
+	if !allowedExecCommands()[executable] {
+		return fmt.Errorf("exec probe command '%s' is not in the allowlist. "+
+			"Allowed executables: %s. "+
+			"Add more via the ENTROPY_EXEC_ALLOWLIST environment variable (comma-separated)",
+			executable, strings.Join(defaultAllowedExecCommands, ", "))
+	}
+
+	for _, arg := range cmdParts[1:] {
+		if strings.ContainsAny(arg, execShellMetacharacters) {
+			return fmt.Errorf("exec probe argument '%s' contains a shell metacharacter and is blocked for security", arg)
 		}
 	}
 

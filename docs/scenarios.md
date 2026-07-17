@@ -31,6 +31,32 @@ Used to check the state of the system before, during, or after an injection. Ent
     timeout: 5                # Optional: Timeout in seconds
 ```
 
+Entropy also supports `tcp` probes (`host_port: "localhost:6379"`) and `exec` probes that run a diagnostic command inside the target container/pod:
+
+```yaml
+- probe:
+    type: exec
+    target: "my-service"
+    command: "cat /proc/uptime"
+```
+
+**Security: exec probe commands are allowlisted.** Because `command` comes from
+scenario YAML files (which may be untrusted or shared), only a small set of
+read-only diagnostic executables is permitted by default: `cat`, `ls`, `stat`,
+`test`, `true`, `false`, `echo`, `pgrep`, `ps`, `head`, `tail`, `wc`, `grep`.
+Arguments containing shell metacharacters (`; | & \` $ ( ) < >`) are rejected
+even for allowlisted commands. Shells, interpreters (`sh`, `python`, `perl`,
+...), and network tools (`curl`, `nc`, `ssh`, ...) are always blocked — no
+command can escalate to running arbitrary code or reaching the network through
+an exec probe.
+
+To permit additional read-only commands your scenarios rely on, set
+`ENTROPY_EXEC_ALLOWLIST` (comma-separated) before running Entropy:
+
+```bash
+ENTROPY_EXEC_ALLOWLIST=whoami,id entropy scenario run my-scenario.yaml
+```
+
 ### 2. Inject Step
 Injects a specific fault into a target container. This can be a Docker lifecycle action, a network fault, or a resource constraint.
 

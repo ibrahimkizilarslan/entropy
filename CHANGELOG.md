@@ -14,6 +14,17 @@ and this project follows [Semantic Versioning](https://semver.org/).
   target *any* container/pod on the host. It now refuses to run unless
   `--skip-validation` is explicitly passed, which now also prints a visible
   warning. See [pkg/cli/chaos.go](pkg/cli/chaos.go).
+- **[BREAKING]** Exec probe command validation switched from a blocklist to an
+  allowlist. Previously, `validateExecCommand` blocked a fixed list of known-bad
+  executables (shells, interpreters, network tools), which could be bypassed
+  via commands like `env sh -c '...'`, `busybox sh`, `awk 'BEGIN{system(...)}'`,
+  or `find -exec` — none of which were on the blocklist. Only a small set of
+  read-only diagnostic commands (`cat`, `ls`, `stat`, `test`, `true`, `false`,
+  `echo`, `pgrep`, `ps`, `head`, `tail`, `wc`, `grep`) is now permitted by
+  default, with arguments additionally scanned for shell metacharacters.
+  Scenarios relying on other commands can opt in via the new
+  `ENTROPY_EXEC_ALLOWLIST` environment variable. See
+  [pkg/engine/probes.go](pkg/engine/probes.go).
 
 ### Added
 - End-to-end smoke pipeline script at `scripts/e2e-smoke.sh`.
