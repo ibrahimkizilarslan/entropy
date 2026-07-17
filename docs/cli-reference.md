@@ -53,8 +53,8 @@ Manually injects a single chaos action into a target container.
     *   `[target]`: Docker container/service name or Kubernetes deployment/pod name.
 *   **Options:**
     *   `--runtime <docker|kubernetes>`: Container runtime to use (default: `docker`).
-    *   `--config, -c <path>`: Config file path used for target allow-list checks.
-    *   `--skip-validation`: Skip target allow-list check.
+    *   `--config, -c <path>`: Config file path used for target allow-list checks. **By default, `inject` fails closed**: if this file cannot be loaded, the command refuses to run rather than allowing an unrestricted target. Pass `--skip-validation` if you intentionally want to target a container outside any `chaos.yaml`.
+    *   `--skip-validation`: Bypass the target allow-list check entirely (no config file is read). This trusts `[target]` unconditionally — use with care, since it allows targeting *any* container/pod, not just ones listed in `chaos.yaml`. Entropy prints a warning to stderr whenever this flag is used.
     *   `--latency <ms>`: Delay latency (for `delay`).
     *   `--jitter <ms>`: Delay jitter (for `delay`).
     *   `--loss <percent>`: Packet loss percentage (for `loss`).

@@ -7,6 +7,14 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+- **[BREAKING]** `entropy inject` now fails closed when its allow-list config
+  (`chaos.yaml` by default) cannot be loaded. Previously, a missing or invalid
+  config file silently disabled the target allow-list, allowing `inject` to
+  target *any* container/pod on the host. It now refuses to run unless
+  `--skip-validation` is explicitly passed, which now also prints a visible
+  warning. See [pkg/cli/chaos.go](pkg/cli/chaos.go).
+
 ### Added
 - End-to-end smoke pipeline script at `scripts/e2e-smoke.sh`.
 - CI smoke workflow job to validate command-level behavior against the demo stack.

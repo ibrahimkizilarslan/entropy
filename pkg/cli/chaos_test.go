@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -143,6 +144,92 @@ func TestLogsCommand(t *testing.T) {
 
 	if string(content) != "test log\n" {
 		t.Errorf("Log content mismatch: got %q, want %q", string(content), "test log\n")
+	}
+}
+
+// TestResolveInjectAllowedTargets_MissingConfigFailsClosed verifies the P0 fix:
+// when chaos.yaml is missing and --skip-validation is NOT set, inject must
+// refuse to proceed (fail-closed) instead of silently allowing any target.
+func TestResolveInjectAllowedTargets_MissingConfigFailsClosed(t *testing.T) {
+	tmpDir := t.TempDir()
+	missingConfig := filepath.Join(tmpDir, "does-not-exist.yaml")
+
+	targets, err := resolveInjectAllowedTargets(missingConfig, "any-container", false)
+	if err == nil {
+		t.Fatal("expected an error when config is missing and skipValidation is false, got nil")
+	}
+	if targets != nil {
+		t.Errorf("expected nil allowed targets on failure, got %v", targets)
+	}
+}
+
+// TestResolveInjectAllowedTargets_SkipValidationBypasses verifies that
+// --skip-validation is the only sanctioned way to bypass the allow-list.
+func TestResolveInjectAllowedTargets_SkipValidationBypasses(t *testing.T) {
+	tmpDir := t.TempDir()
+	missingConfig := filepath.Join(tmpDir, "does-not-exist.yaml")
+
+	targets, err := resolveInjectAllowedTargets(missingConfig, "any-container", true)
+	if err != nil {
+		t.Fatalf("expected no error with skipValidation=true, got: %v", err)
+	}
+	if targets != nil {
+		t.Errorf("expected nil (unrestricted) targets with skipValidation=true, got %v", targets)
+	}
+}
+
+// TestResolveInjectAllowedTargets_TargetNotInList verifies existing behavior:
+// a valid config that doesn't contain the requested target is rejected.
+func TestResolveInjectAllowedTargets_TargetNotInList(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "chaos.yaml")
+	configYAML := `interval: 10
+targets:
+  - service-a
+actions:
+  - name: stop
+safety:
+  max_down: 1
+  cooldown: 30
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	targets, err := resolveInjectAllowedTargets(configPath, "not-a-target", false)
+	if err == nil {
+		t.Fatal("expected an error for a target not in the allow-list, got nil")
+	}
+	if targets != nil {
+		t.Errorf("expected nil allowed targets on failure, got %v", targets)
+	}
+}
+
+// TestResolveInjectAllowedTargets_ValidConfigReturnsAllowList verifies the
+// happy path: a valid config containing the target returns the full allow-list.
+func TestResolveInjectAllowedTargets_ValidConfigReturnsAllowList(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "chaos.yaml")
+	configYAML := `interval: 10
+targets:
+  - service-a
+  - service-b
+actions:
+  - name: stop
+safety:
+  max_down: 1
+  cooldown: 30
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	targets, err := resolveInjectAllowedTargets(configPath, "service-a", false)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Errorf("expected 2 allowed targets, got %d: %v", len(targets), targets)
 	}
 }
 

@@ -127,6 +127,32 @@ var statusCmd = &cobra.Command{
 	},
 }
 
+// resolveInjectAllowedTargets determines the allow-list of targets for a manual
+// `inject` invocation.
+//
+// Security invariant: unless the caller explicitly opts out via skipValidation,
+// a missing or unreadable config file must NOT silently disable the allow-list.
+// Silently falling back to "allow everything" would let `entropy inject` target
+// any container on the host from a directory with no chaos.yaml. Instead, we
+// fail closed and return an error.
+func resolveInjectAllowedTargets(configPath, target string, skipValidation bool) ([]string, error) {
+	if skipValidation {
+		return nil, nil
+	}
+
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("refusing to inject without an allow-list: %w\n  → Pass --skip-validation to bypass this check (targets ANY container)", err)
+	}
+
+	for _, t := range cfg.Targets {
+		if t == target {
+			return cfg.Targets, nil
+		}
+	}
+	return nil, fmt.Errorf("'%s' is not in the targets list of %s", target, configPath)
+}
+
 var injectCmd = &cobra.Command{
 	Use:   "inject [action] [target]",
 	Short: "Manually inject a single chaos action into a target container",
@@ -156,23 +182,14 @@ var injectCmd = &cobra.Command{
 			spec.Duration = &duration
 		}
 
-		var allowedTargets []string
-		if !skipVal {
-			cfg, err := config.LoadConfig(configPath)
-			if err == nil {
-				allowedTargets = cfg.Targets
-				found := false
-				for _, t := range allowedTargets {
-					if t == target {
-						found = true
-						break
-					}
-				}
-				if !found {
-					pterm.Error.Printf("'%s' is not in the targets list of %s.\n", target, configPath)
-					os.Exit(1)
-				}
-			}
+		if skipVal {
+			pterm.Warning.Println("--skip-validation set: bypassing the allow-list. This target will be trusted without checking chaos.yaml.")
+		}
+
+		allowedTargets, err := resolveInjectAllowedTargets(configPath, target, skipVal)
+		if err != nil {
+			pterm.Error.Println(err)
+			os.Exit(1)
 		}
 
 		dc, err := engine.GetRuntime(runtimeType, allowedTargets)
