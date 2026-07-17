@@ -31,6 +31,18 @@ Used to check the state of the system before, during, or after an injection. Ent
     timeout: 5                # Optional: Timeout in seconds
 ```
 
+**Security: `http`/`tcp` probes are protected against SSRF.** Since probe
+targets come from scenario YAML, Entropy validates every connection at the
+network level (not just by hostname) before it is made — this closes DNS
+rebinding attacks where a hostname resolves to a safe IP at validation time
+but a different, blocked IP at connection time. Cloud metadata endpoints
+(`169.254.169.254`, `metadata.google.internal`, etc.) are **always** blocked,
+since anything that can reach them can exfiltrate cloud credentials. Private,
+loopback, and link-local IPs (e.g. `192.168.x.x`, `127.0.0.1`, containers on a
+Docker network) are allowed by default, since chaos probes legitimately target
+local infrastructure. Set `ENTROPY_ALLOW_PRIVATE_NETWORKS=false` to also block
+those ranges (useful when running scenario files you don't fully trust).
+
 Entropy also supports `tcp` probes (`host_port: "localhost:6379"`) and `exec` probes that run a diagnostic command inside the target container/pod:
 
 ```yaml

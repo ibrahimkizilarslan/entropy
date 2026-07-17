@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
@@ -88,30 +89,131 @@ type ProbeResult struct {
 	Message string
 }
 
-// denyListCIDRs contains CIDR ranges that probes should not be allowed to reach
-// unless explicitly opted-in. This prevents SSRF attacks via malicious scenario files.
-var denyListCIDRs = []string{
-	"169.254.169.254/32", // AWS/GCP/Azure metadata service
-	"169.254.0.0/16",     // Link-local addresses
-	"127.0.0.0/8",        // Loopback (allowed by default, but metadata is blocked)
-	"10.0.0.0/8",         // RFC1918 private
-	"172.16.0.0/12",      // RFC1918 private
-	"192.168.0.0/16",     // RFC1918 private
+// alwaysBlockedIPs are specific IPs that are blocked unconditionally,
+// regardless of the private-network policy below. These are cloud instance
+// metadata services that expose credentials/secrets to anything that can
+// reach them over HTTP — there is no legitimate chaos-probe use case for
+// targeting them.
+var alwaysBlockedIPs = []string{
+	"169.254.169.254", // AWS / GCP / Azure / DigitalOcean IMDS
+	"100.100.100.200", // Alibaba Cloud metadata
+	"fd00:ec2::254",   // AWS IMDSv2 (IPv6)
 }
 
-// metadataDenyList contains specific IP addresses that must always be blocked (cloud metadata).
-var metadataDenyList = []string{
-	"169.254.169.254",
+// alwaysBlockedHostnames are hostnames that must always be blocked. This is a
+// best-effort, defense-in-depth check performed before DNS resolution; the
+// authoritative check is isBlockedIP, applied at dial time via dialerControl.
+var alwaysBlockedHostnames = []string{
 	"metadata.google.internal",
 }
 
-// allowPrivateNetworks controls whether probes can reach private network ranges.
-// In chaos engineering, probes legitimately target local containers, so private
-// networks are allowed by default. Only cloud metadata endpoints are always blocked.
-const allowPrivateNetworks = true
+// privateNetworksAllowed controls whether probes can reach private/loopback/
+// link-local network ranges, via the ENTROPY_ALLOW_PRIVATE_NETWORKS env var.
+// Defaults to true: in chaos engineering, probes legitimately target local
+// containers and services. Cloud metadata endpoints are blocked regardless
+// of this setting.
+func privateNetworksAllowed() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("ENTROPY_ALLOW_PRIVATE_NETWORKS")))
+	switch v {
+	case "false", "0", "no":
+		return false
+	default:
+		return true
+	}
+}
 
-// validateProbeURL checks the target URL against the deny-list to prevent SSRF attacks.
-// Cloud metadata endpoints (169.254.169.254) are always blocked.
+// isBlockedIP reports whether ip must be blocked for SSRF protection, and why.
+func isBlockedIP(ip net.IP) (blocked bool, reason string) {
+	for _, blockedStr := range alwaysBlockedIPs {
+		if b := net.ParseIP(blockedStr); b != nil && b.Equal(ip) {
+			return true, fmt.Sprintf("cloud metadata IP %s", ip)
+		}
+	}
+
+	if !privateNetworksAllowed() {
+		switch {
+		case ip.IsLoopback():
+			return true, fmt.Sprintf("loopback IP %s (set ENTROPY_ALLOW_PRIVATE_NETWORKS=true to allow)", ip)
+		case ip.IsPrivate():
+			return true, fmt.Sprintf("private IP %s (set ENTROPY_ALLOW_PRIVATE_NETWORKS=true to allow)", ip)
+		case ip.IsLinkLocalUnicast():
+			return true, fmt.Sprintf("link-local IP %s (set ENTROPY_ALLOW_PRIVATE_NETWORKS=true to allow)", ip)
+		}
+	}
+
+	return false, ""
+}
+
+// dialerControl is installed as net.Dialer.Control on every probe dialer
+// (HTTP and TCP). Unlike a pre-check against the request hostname, Control
+// runs after DNS resolution, against the exact IP address the connection is
+// about to be made to. This closes the DNS-rebinding / TOCTOU gap: a hostname
+// that resolves to a safe IP when first validated but a blocked IP at actual
+// connection time (e.g. a second DNS lookup returning a different address)
+// is still caught here, because this is the address the OS is about to
+// connect to, not a separately-resolved one.
+func dialerControl(network, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return fmt.Errorf("invalid dial address %q: %w", address, err)
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return fmt.Errorf("could not parse dial target %q as an IP", host)
+	}
+	if blocked, reason := isBlockedIP(ip); blocked {
+		return fmt.Errorf("SSRF protection: connection to %s blocked (%s)", ip, reason)
+	}
+	return nil
+}
+
+// newSafeDialer returns a net.Dialer with dialerControl installed, for use by
+// both HTTP and TCP probes.
+func newSafeDialer(timeout time.Duration) *net.Dialer {
+	return &net.Dialer{
+		Timeout: timeout,
+		Control: dialerControl,
+	}
+}
+
+// validateProbeHost performs a best-effort, early SSRF check against a
+// hostname or IP literal, before any connection is attempted. This exists to
+// produce a clear, fast error message; it is NOT the authoritative check —
+// dialerControl (run at actual dial time, against the resolved IP) is — so a
+// DNS failure or race here is not a security hole, only a missed early exit.
+func validateProbeHost(hostname string) error {
+	for _, blocked := range alwaysBlockedHostnames {
+		if strings.EqualFold(hostname, blocked) {
+			return fmt.Errorf("probe target is a cloud metadata endpoint (%s), which is blocked for security", hostname)
+		}
+	}
+
+	if ip := net.ParseIP(hostname); ip != nil {
+		if blocked, reason := isBlockedIP(ip); blocked {
+			return fmt.Errorf("probe target IP is blocked (%s)", reason)
+		}
+		return nil
+	}
+
+	ips, err := net.LookupHost(hostname)
+	if err != nil {
+		// If DNS fails here, let the probe attempt (and fail naturally) rather
+		// than blocking on a lookup error unrelated to SSRF.
+		return nil
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if blocked, reason := isBlockedIP(ip); blocked {
+			return fmt.Errorf("probe target resolves to a blocked IP (%s)", reason)
+		}
+	}
+	return nil
+}
+
+// validateProbeURL checks the target URL's hostname against SSRF protections.
 func validateProbeURL(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -123,61 +225,17 @@ func validateProbeURL(rawURL string) error {
 		return fmt.Errorf("probe URL has no hostname: %s", rawURL)
 	}
 
-	// Always block known cloud metadata endpoints
-	for _, blocked := range metadataDenyList {
-		if strings.EqualFold(hostname, blocked) {
-			return fmt.Errorf("probe URL targets a cloud metadata endpoint (%s), which is blocked for security", hostname)
-		}
-	}
-
-	// Resolve hostname to IP for CIDR checks
-	ips, err := net.LookupHost(hostname)
-	if err != nil {
-		// If DNS fails, allow the probe to proceed (it will fail naturally)
-		return nil
-	}
-
-	for _, ipStr := range ips {
-		ip := net.ParseIP(ipStr)
-		if ip == nil {
-			continue
-		}
-
-		// Always block link-local metadata range
-		_, metadataCIDR, _ := net.ParseCIDR("169.254.169.254/32")
-		if metadataCIDR.Contains(ip) {
-			return fmt.Errorf("probe URL resolves to cloud metadata IP (%s), which is blocked for security", ipStr)
-		}
-
-		// If private networks are not allowed, check against all deny-listed CIDRs
-		if !allowPrivateNetworks {
-			for _, cidrStr := range denyListCIDRs {
-				_, cidr, _ := net.ParseCIDR(cidrStr)
-				if cidr != nil && cidr.Contains(ip) {
-					return fmt.Errorf("probe URL resolves to a private/restricted IP (%s in %s), which is blocked", ipStr, cidrStr)
-				}
-			}
-		}
-	}
-
-	return nil
+	return validateProbeHost(hostname)
 }
 
-// validateProbeHostPort checks the target host:port against the deny-list.
+// validateProbeHostPort checks the target host:port against SSRF protections.
 func validateProbeHostPort(hostPort string) error {
 	host, _, err := net.SplitHostPort(hostPort)
 	if err != nil {
 		return fmt.Errorf("invalid host:port format: %s", hostPort)
 	}
 
-	// Check metadata endpoints
-	for _, blocked := range metadataDenyList {
-		if strings.EqualFold(host, blocked) {
-			return fmt.Errorf("probe target is a cloud metadata endpoint (%s), which is blocked for security", host)
-		}
-	}
-
-	return nil
+	return validateProbeHost(host)
 }
 
 func RunProbe(spec *config.ProbeSpec, runtime ContainerRuntime) ProbeResult {
@@ -198,19 +256,31 @@ func RunProbeWithContext(ctx context.Context, spec *config.ProbeSpec, runtime Co
 }
 
 func runHTTPProbe(ctx context.Context, spec *config.ProbeSpec) ProbeResult {
-	// SSRF protection: validate URL before making the request
+	// SSRF protection, layer 1: fast pre-check against the request hostname.
 	if err := validateProbeURL(spec.URL); err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("SSRF protection: %v", err)}
 	}
 
+	timeout := time.Duration(spec.Timeout) * time.Second
+
+	// Clone the default transport (preserving proxy support, HTTP/2, and
+	// connection-pooling defaults) and only override DialContext.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	// SSRF protection, layer 2 (authoritative): dialerControl runs at dial
+	// time against the resolved IP, closing the DNS-rebinding gap that a
+	// hostname-only pre-check cannot.
+	transport.DialContext = newSafeDialer(timeout).DialContext
+
 	client := &http.Client{
-		Timeout: time.Duration(spec.Timeout) * time.Second,
+		Timeout:   timeout,
+		Transport: transport,
 		// Prevent open redirect-based SSRF by limiting redirects
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 3 {
 				return fmt.Errorf("stopped after 3 redirects")
 			}
-			// Validate each redirect target
+			// Validate each redirect target's hostname; the dialer's Control
+			// hook enforces the authoritative IP-level check regardless.
 			if err := validateProbeURL(req.URL.String()); err != nil {
 				return fmt.Errorf("redirect blocked by SSRF protection: %w", err)
 			}
@@ -258,15 +328,16 @@ func runHTTPProbe(ctx context.Context, spec *config.ProbeSpec) ProbeResult {
 }
 
 func runTCPProbe(ctx context.Context, spec *config.ProbeSpec) ProbeResult {
-	// SSRF protection: validate host:port before connecting
+	// SSRF protection, layer 1: fast pre-check against the request host.
 	if err := validateProbeHostPort(spec.HostPort); err != nil {
 		return ProbeResult{Success: false, Message: fmt.Sprintf("SSRF protection: %v", err)}
 	}
 
 	timeout := time.Duration(spec.Timeout) * time.Second
 
-	var d net.Dialer
-	d.Timeout = timeout
+	// SSRF protection, layer 2 (authoritative): dialerControl runs at dial
+	// time against the resolved IP, closing the DNS-rebinding gap.
+	d := newSafeDialer(timeout)
 
 	conn, err := d.DialContext(ctx, "tcp", spec.HostPort)
 	if err != nil {

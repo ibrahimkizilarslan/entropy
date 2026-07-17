@@ -120,3 +120,5 @@ Lists all running Docker containers on the host machine. This is a utility comma
 | `ENTROPY_K8S_NAMESPACE` | Target namespace for Kubernetes operations. | `default` |
 | `ENTROPY_NET_INTERFACE` | The network interface name inside containers where `tc` rules are applied. | `eth0` |
 | `KUBECONFIG` | Path to the kubeconfig file for cluster access. | `~/.kube/config` |
+| `ENTROPY_ALLOW_PRIVATE_NETWORKS` | Whether `http`/`tcp` scenario probes may target private, loopback, or link-local IPs. Cloud metadata IPs (e.g. `169.254.169.254`) are always blocked regardless of this setting. | `true` |
+| `ENTROPY_EXEC_ALLOWLIST` | Comma-separated list of additional executables permitted in `exec` scenario probes, beyond the built-in read-only allowlist. | *(none)* |

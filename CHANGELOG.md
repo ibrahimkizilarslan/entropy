@@ -25,6 +25,18 @@ and this project follows [Semantic Versioning](https://semver.org/).
   Scenarios relying on other commands can opt in via the new
   `ENTROPY_EXEC_ALLOWLIST` environment variable. See
   [pkg/engine/probes.go](pkg/engine/probes.go).
+- Hardened SSRF protection for `http`/`tcp` scenario probes. The previous
+  implementation resolved the probe's hostname once for validation, then let
+  the HTTP client / TCP dialer resolve it again independently to connect —
+  leaving a DNS-rebinding / TOCTOU gap where a hostname could pass validation
+  but connect to a blocked IP. Validation now also runs at actual dial time
+  (via `net.Dialer.Control`), checked against the exact IP the connection is
+  being made to. Cloud metadata IPs (AWS/GCP/Azure `169.254.169.254`, Alibaba
+  `100.100.100.200`, AWS IMDSv2 IPv6) are always blocked. Private/loopback/
+  link-local ranges remain allowed by default (chaos probes legitimately
+  target local infrastructure) but can now be blocked via the new
+  `ENTROPY_ALLOW_PRIVATE_NETWORKS=false` environment variable. See
+  [pkg/engine/probes.go](pkg/engine/probes.go).
 
 ### Added
 - End-to-end smoke pipeline script at `scripts/e2e-smoke.sh`.

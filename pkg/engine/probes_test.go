@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -159,6 +160,125 @@ func TestTCPProbe_SSRFBlocked(t *testing.T) {
 	result := RunProbe(probe, nil)
 	if result.Success {
 		t.Error("Expected SSRF protection to block metadata host")
+	}
+}
+
+// ---- SSRF: dial-time protection (dialerControl / isBlockedIP) ----
+
+// TestDialerControl_BlocksMetadataIP verifies the authoritative, dial-time
+// check blocks the AWS/GCP/Azure metadata IP regardless of hostname.
+func TestDialerControl_BlocksMetadataIP(t *testing.T) {
+	err := dialerControl("tcp4", "169.254.169.254:80", nil)
+	if err == nil {
+		t.Error("expected metadata IP to be blocked at dial time")
+	}
+}
+
+// TestDialerControl_BlocksAlibabaMetadataIP verifies the Alibaba Cloud
+// metadata endpoint is blocked too.
+func TestDialerControl_BlocksAlibabaMetadataIP(t *testing.T) {
+	err := dialerControl("tcp4", "100.100.100.200:80", nil)
+	if err == nil {
+		t.Error("expected Alibaba metadata IP to be blocked at dial time")
+	}
+}
+
+// TestDialerControl_BlocksMetadataIPv6 verifies the AWS IMDSv2 IPv6 address
+// is blocked.
+func TestDialerControl_BlocksMetadataIPv6(t *testing.T) {
+	err := dialerControl("tcp6", "[fd00:ec2::254]:80", nil)
+	if err == nil {
+		t.Error("expected IMDSv2 IPv6 metadata address to be blocked at dial time")
+	}
+}
+
+// TestDialerControl_AllowsPublicIP verifies a normal public IP is not blocked.
+func TestDialerControl_AllowsPublicIP(t *testing.T) {
+	err := dialerControl("tcp4", "93.184.216.34:80", nil) // example.com's historical IP
+	if err != nil {
+		t.Errorf("expected public IP to be allowed, got: %v", err)
+	}
+}
+
+// TestDialerControl_InvalidAddress verifies a malformed dial address is rejected.
+func TestDialerControl_InvalidAddress(t *testing.T) {
+	if err := dialerControl("tcp4", "not-a-valid-address", nil); err == nil {
+		t.Error("expected malformed dial address to be rejected")
+	}
+}
+
+// TestDialerControl_PrivateNetworkPolicy verifies ENTROPY_ALLOW_PRIVATE_NETWORKS
+// governs whether private/loopback/link-local IPs are blocked at dial time.
+// Default (unset) must allow them, since chaos probes legitimately target
+// local containers.
+func TestDialerControl_PrivateNetworkPolicy(t *testing.T) {
+	cases := []struct {
+		name string
+		addr string
+	}{
+		{"private RFC1918", "192.168.1.1:80"},
+		{"loopback", "127.0.0.1:80"},
+		{"link-local", "169.254.1.1:80"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+"/default allowed", func(t *testing.T) {
+			if err := dialerControl("tcp4", tc.addr, nil); err != nil {
+				t.Errorf("expected %s to be allowed by default, got: %v", tc.addr, err)
+			}
+		})
+	}
+
+	t.Setenv("ENTROPY_ALLOW_PRIVATE_NETWORKS", "false")
+
+	for _, tc := range cases {
+		t.Run(tc.name+"/blocked when disallowed", func(t *testing.T) {
+			if err := dialerControl("tcp4", tc.addr, nil); err == nil {
+				t.Errorf("expected %s to be blocked when ENTROPY_ALLOW_PRIVATE_NETWORKS=false", tc.addr)
+			}
+		})
+	}
+}
+
+// TestDialerControl_MetadataBlockedEvenWithPrivateNetworksAllowed verifies
+// that cloud metadata IPs are blocked unconditionally — the private-network
+// policy must never override this, since ENTROPY_ALLOW_PRIVATE_NETWORKS is
+// meant for legitimate local/container targets, not credential-exposing
+// metadata services.
+func TestDialerControl_MetadataBlockedEvenWithPrivateNetworksAllowed(t *testing.T) {
+	t.Setenv("ENTROPY_ALLOW_PRIVATE_NETWORKS", "true")
+	if err := dialerControl("tcp4", "169.254.169.254:80", nil); err == nil {
+		t.Error("expected metadata IP to remain blocked even with private networks allowed")
+	}
+}
+
+// TestRunTCPProbe_LoopbackStillWorks is a regression test: it proves the new
+// dial-time SSRF Control hook does not break legitimate loopback connections,
+// which chaos scenarios rely on by default.
+func TestRunTCPProbe_LoopbackStillWorks(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to start test listener: %v", err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
+	probe := &config.ProbeSpec{
+		Type:     "tcp",
+		HostPort: ln.Addr().String(),
+		Timeout:  2,
+	}
+	result := RunProbe(probe, nil)
+	if !result.Success {
+		t.Errorf("expected loopback TCP probe to succeed, got: %s", result.Message)
 	}
 }
 
