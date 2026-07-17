@@ -43,7 +43,7 @@ var registryListCmd = &cobra.Command{
 			})
 		}
 
-		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+		_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 	},
 }
 

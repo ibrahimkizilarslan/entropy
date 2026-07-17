@@ -7,6 +7,24 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- CI now runs `golangci-lint` (config: `.golangci.yml`) and `govulncheck` on
+  every push/PR, alongside the existing `go vet`/`go test` job. See
+  `make lint` / `make vulncheck` for local equivalents.
+- `.github/dependabot.yml` for automated weekly `gomod` and
+  `github-actions` dependency update PRs.
+
+### Changed
+- Upgraded the Go toolchain requirement from `1.26.0` to `1.26.5` and
+  `golang.org/x/net` from `v0.49.0` to `v0.57.0`, resolving 25
+  `govulncheck`-reported vulnerabilities (Go standard library CVEs fixed in
+  1.26.1–1.26.5, plus `golang.org/x/net` CVEs). `github.com/docker/docker@v24`
+  still carries 6 known findings that require a v24→v25 major-version
+  upgrade; that upgrade is tracked separately (breaking API risk, needs a
+  real Docker daemon to validate) and the `vulncheck` CI job is configured
+  with `continue-on-error` until it lands — see the job's inline comment in
+  `.github/workflows/ci.yml`.
+
 ### Fixed
 - Network and resource chaos injection/revert no longer serializes across
   unrelated targets. `NetworkChaosManager` and `ResourceChaosManager`

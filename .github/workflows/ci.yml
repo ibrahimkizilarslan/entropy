@@ -36,6 +36,49 @@ jobs:
       - name: Run tests with coverage and race detector
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  vulncheck:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      # continue-on-error: this currently reports 6 known vulnerabilities in
+      # github.com/docker/docker@v24 (see GO-2026-5746, GO-2026-5668,
+      # GO-2026-5617, GO-2026-4887, GO-2026-4883, GO-2025-3829). Fixing these
+      # requires a v24->v25 major-version upgrade of the Docker SDK, tracked
+      # as a separate, dedicated task (breaking API risk, needs a real Docker
+      # daemon for regression testing) rather than being silently bundled
+      # into CI setup. Once that upgrade lands, remove this continue-on-error
+      # so the scan becomes a hard gate again.
+      - name: Run govulncheck
+        continue-on-error: true
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
   smoke-e2e:
     name: End-to-End Smoke Test
     runs-on: ubuntu-latest

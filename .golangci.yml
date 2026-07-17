@@ -1,0 +1,36 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+  settings:
+    errcheck:
+      # io.Closer.Close (and similar cleanup calls) are routinely ignored in
+      # Go — a failed Close on a read-only fd/response body/listener is not
+      # actionable in these call sites. Flagging every deferred Close as an
+      # error is noise, not a real finding.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+    staticcheck:
+      # SA* (actual bugs) and S1* (real simplifications) are correctness/
+      # quality findings. ST1* (style, e.g. naming/comment conventions) and
+      # QF1* (quickfix style suggestions, e.g. "use a tagged switch") are
+      # opinionated style preferences, not correctness issues — excluded to
+      # keep this linter focused on engineering quality over cosmetics.
+      checks:
+        - SA*
+        - S1*
+  exclusions:
+    paths:
+      # Demo/example services under examples/ are illustrative code for the
+      # bundled distributed demo, not part of the entropy binary or library.
+      - examples/.*
+

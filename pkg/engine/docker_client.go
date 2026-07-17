@@ -453,6 +453,6 @@ func (d *DockerClient) CleanupAll(ctx context.Context) {
 
 func (d *DockerClient) Close() {
 	if d.cli != nil {
-		d.cli.Close()
+		_ = d.cli.Close()
 	}
 }

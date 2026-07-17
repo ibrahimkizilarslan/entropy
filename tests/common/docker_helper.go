@@ -60,6 +60,6 @@ func (h *DockerHelper) GetContainerStatus(name string) (string, error) {
 // Close closes the docker client.
 func (h *DockerHelper) Close() {
 	if h.cli != nil {
-		h.cli.Close()
+		_ = h.cli.Close()
 	}
 }

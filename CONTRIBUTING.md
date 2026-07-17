@@ -15,9 +15,11 @@ First off, thank you for considering contributing to Entropy CLI! It's people li
 
 ### 3. Submitting Pull Requests
 1. Fork the repository and create your branch from `main`.
-2. Ensure your code passes `go vet ./...` and `go test ./...`.
+2. Ensure your code passes `go vet ./...`, `go test ./...`, and `golangci-lint run` (see `.golangci.yml`; install via `go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run` if you don't have it installed).
 3. Update the documentation (`README.md` or the `docs/` folder) if you are adding a new feature.
 4. Issue that pull request!
+
+CI also runs `govulncheck` against every PR to catch known vulnerabilities in dependencies. It currently reports pre-existing findings in `github.com/docker/docker@v24` that are tracked separately (see CI job comments) and does not block merges; new findings introduced by your change should still be addressed before merging.
 
 ## Local Development Setup
 

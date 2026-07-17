@@ -1,4 +1,4 @@
-.PHONY: help build install test test-cli test-engine test-worker test-coverage test-coverage-report test-verbose test-run
+.PHONY: help build install test test-cli test-engine test-worker test-coverage test-coverage-report test-verbose test-run lint vulncheck
 
 help:
 	@echo "Entropy Commands"
@@ -13,6 +13,8 @@ help:
 	@echo "  make test-verbose         - Run all tests with verbose output"
 	@echo "  make test-coverage        - Run all tests with coverage report"
 	@echo "  make test-coverage-report - Generate detailed coverage report"
+	@echo "  make lint                 - Run golangci-lint (see .golangci.yml)"
+	@echo "  make vulncheck            - Run govulncheck against known vulnerabilities"
 	@echo ""
 	@echo "Module-specific tests:"
 	@echo "  make test-cli             - Run CLI tests"
@@ -124,6 +126,16 @@ check-coverage:
 clean-coverage:
 	@rm -f coverage.out coverage.html
 	@echo "Cleaned coverage files"
+
+# Run golangci-lint (config: .golangci.yml)
+lint:
+	@echo "Running golangci-lint..."
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run ./...
+
+# Run govulncheck against known vulnerabilities in dependencies
+vulncheck:
+	@echo "Running govulncheck..."
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # Test all packages individually
 test-all-packages:
