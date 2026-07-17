@@ -3,8 +3,10 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -121,6 +123,52 @@ func TestWrite_SetInjectedAt(t *testing.T) {
 	}
 	if all[0].InjectedAt.Before(before) {
 		t.Error("InjectedAt should be set to approximately now")
+	}
+}
+
+// TestWrite_ConcurrentWritesDoNotLoseRecords is a regression test: persist()
+// used to write to a fixed temp file path (path+".tmp") with no
+// serialization between concurrent callers. Two Write calls racing on
+// persist() could let one call's rename win with a disk snapshot that was
+// taken before the other call's record existed, silently dropping a record
+// that had already been added to the in-memory map. This test drives many
+// concurrent Write calls and asserts none of them are lost, either in
+// memory or in the on-disk file.
+func TestWrite_ConcurrentWritesDoNotLoseRecords(t *testing.T) {
+	reg, path := newTempRegistry(t)
+
+	const n = 50
+	var wg sync.WaitGroup
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, err := reg.Write(makeRecord(fmt.Sprintf("svc-%d", i), FaultTypeNetworkDelay))
+			if err != nil {
+				errs <- err
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("unexpected Write error: %v", err)
+	}
+
+	if got := len(reg.ListAll()); got != n {
+		t.Errorf("expected %d records in memory after concurrent writes, got %d", n, got)
+	}
+
+	// Reload from disk to verify persist() actually wrote every record —
+	// this is the assertion that catches the clobbered-tmp-file bug, since
+	// the in-memory check above only proves the map is correct, not the file.
+	reloaded, err := Open(path)
+	if err != nil {
+		t.Fatalf("failed to reopen registry: %v", err)
+	}
+	if got := len(reloaded.ListAll()); got != n {
+		t.Errorf("expected %d records on disk after concurrent writes, got %d", n, got)
 	}
 }
 

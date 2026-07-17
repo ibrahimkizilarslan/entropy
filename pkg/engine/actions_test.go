@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
@@ -37,6 +39,54 @@ func TestResourceChaosManagerClearAll(t *testing.T) {
 	if count != 0 {
 		t.Errorf("Expected 0 timers after ClearAll, got %d", count)
 	}
+}
+
+// TestResourceChaosManager_ConcurrentScheduleRestore_DifferentTargets is a
+// regression test for the P1 lock-contention fix: scheduling a restore for
+// one target (including its registry.Write call) must not block scheduling
+// a restore for a different target. Uses a real on-disk FaultRegistry since
+// the registry's own I/O (fsync) is exactly what used to be held under
+// ResourceChaosManager.mu.
+func TestResourceChaosManager_ConcurrentScheduleRestore_DifferentTargets(t *testing.T) {
+	regPath := filepath.Join(t.TempDir(), "registry.json")
+	reg, err := registry.Open(regPath)
+	if err != nil {
+		t.Fatalf("failed to open registry: %v", err)
+	}
+
+	manager := NewResourceChaosManager()
+	manager.SetRegistry(reg)
+	mock := NewMockRuntime()
+
+	var wg sync.WaitGroup
+	targets := []string{"target-a", "target-b", "target-c"}
+	for _, target := range targets {
+		wg.Add(1)
+		go func(tgt string) {
+			defer wg.Done()
+			manager.ScheduleRestore(mock, tgt, registry.FaultTypeCPULimit, 3600, 50000, 100000, 0)
+		}(target)
+	}
+	wg.Wait()
+
+	manager.mu.Lock()
+	timerCount := len(manager.timers)
+	recordCount := len(manager.activeRecordIDs)
+	manager.mu.Unlock()
+
+	if timerCount != len(targets) {
+		t.Errorf("expected %d timers after concurrent schedules, got %d", len(targets), timerCount)
+	}
+	if recordCount != len(targets) {
+		t.Errorf("expected %d registry records after concurrent schedules, got %d", len(targets), recordCount)
+	}
+
+	active := reg.ListActive()
+	if len(active) != len(targets) {
+		t.Errorf("expected %d active registry records on disk, got %d", len(targets), len(active))
+	}
+
+	manager.ClearAll()
 }
 
 func TestActionHandlersMapExists(t *testing.T) {

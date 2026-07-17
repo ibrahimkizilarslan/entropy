@@ -70,4 +70,14 @@ type FaultRegistry struct {
 	mu      sync.RWMutex
 	path    string
 	records map[string]*FaultRecord // ID → *FaultRecord
+
+	// persistMu serializes calls to persist(). Without it, concurrent
+	// Write/MarkReverted/GarbageCollect calls would all write to the same
+	// fixed temp file path (path+".tmp") and rename it independently,
+	// letting one call's write clobber another's before its rename lands —
+	// silently dropping records that were successfully added to the
+	// in-memory map. mu alone does not prevent this: it only protects the
+	// in-memory map snapshot taken at the start of persist(), not the
+	// file I/O that follows.
+	persistMu sync.Mutex
 }

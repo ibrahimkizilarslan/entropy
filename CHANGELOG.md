@@ -7,6 +7,27 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Network and resource chaos injection/revert no longer serializes across
+  unrelated targets. `NetworkChaosManager` and `ResourceChaosManager`
+  previously held a single mutex across their `tc` exec / registry I/O calls,
+  so a slow operation on one container (e.g. a stalled Docker exec or
+  Kubernetes SPDY stream) blocked injection/revert for every other container.
+  Both managers now use per-target locking: operations on different targets
+  run fully in parallel, while operations on the same target remain
+  serialized for correctness. See
+  [pkg/engine/network_chaos.go](pkg/engine/network_chaos.go) and
+  [pkg/engine/actions.go](pkg/engine/actions.go).
+- Fixed a data-loss race in `FaultRegistry.persist()`
+  ([pkg/registry/store.go](pkg/registry/store.go)), found while making the
+  fix above: concurrent `Write`/`MarkReverted`/`GarbageCollect` calls wrote to
+  the same fixed temp file path with no serialization between them, so one
+  call's rename could win with a disk snapshot missing another call's
+  already-committed in-memory record — silently dropping fault records. This
+  was latent before (nothing called the registry concurrently), but the
+  lock-contention fix above makes concurrent registry writes a normal,
+  expected code path. `persist()` is now serialized via a dedicated mutex.
+
 ### Security
 - **[BREAKING]** `entropy inject` now fails closed when its allow-list config
   (`chaos.yaml` by default) cannot be loaded. Previously, a missing or invalid

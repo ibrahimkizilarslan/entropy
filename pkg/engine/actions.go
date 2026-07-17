@@ -22,18 +22,27 @@ func runtimeTypeName(rt ContainerRuntime) string {
 }
 
 type ResourceChaosManager struct {
+	// mu protects timers, activeRecordIDs, registry, and targetLocks. It is
+	// only ever held for short, in-memory operations — never across an I/O
+	// call (registry.Write, registry.MarkReverted, UpdateContainerResources).
 	mu     sync.Mutex
 	timers map[string]*time.Timer
 
 	// registry is the persistent fault store. May be nil if not configured.
 	registry        *registry.FaultRegistry
 	activeRecordIDs map[string]string // target name → registry record ID
+
+	// targetLocks holds one mutex per target. Holding a target's lock
+	// serializes ScheduleRestore calls for THAT target only, so a slow
+	// registry write for one target never blocks operations on another.
+	targetLocks map[string]*sync.Mutex
 }
 
 func NewResourceChaosManager() *ResourceChaosManager {
 	return &ResourceChaosManager{
 		timers:          make(map[string]*time.Timer),
 		activeRecordIDs: make(map[string]string),
+		targetLocks:     make(map[string]*sync.Mutex),
 	}
 }
 
@@ -45,23 +54,47 @@ func (m *ResourceChaosManager) SetRegistry(r *registry.FaultRegistry) {
 	m.registry = r
 }
 
-func (m *ResourceChaosManager) ScheduleRestore(client ContainerRuntime, target string, faultType registry.FaultType, duration int, cpuQuota, cpuPeriod, memLimit int64) {
+func (m *ResourceChaosManager) getRegistry() *registry.FaultRegistry {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.registry
+}
 
+// lockFor returns the per-target mutex for target, creating it on first use.
+func (m *ResourceChaosManager) lockFor(target string) *sync.Mutex {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	l, ok := m.targetLocks[target]
+	if !ok {
+		l = &sync.Mutex{}
+		m.targetLocks[target] = l
+	}
+	return l
+}
+
+func (m *ResourceChaosManager) ScheduleRestore(client ContainerRuntime, target string, faultType registry.FaultType, duration int, cpuQuota, cpuPeriod, memLimit int64) {
+	targetLock := m.lockFor(target)
+	targetLock.Lock()
+	defer targetLock.Unlock()
+
+	m.mu.Lock()
 	if t, ok := m.timers[target]; ok {
 		t.Stop()
+		delete(m.timers, target)
 	}
+	m.mu.Unlock()
+
+	reg := m.getRegistry()
 
 	// Persist the fault to the registry BEFORE scheduling the timer
-	if m.registry != nil {
+	if reg != nil {
 		expiresAt := time.Now().UTC().Add(time.Duration(duration) * time.Second)
 		params := map[string]any{
 			"cpu_quota":  cpuQuota,
 			"cpu_period": cpuPeriod,
 			"mem_limit":  memLimit,
 		}
-		recordID, err := m.registry.Write(registry.FaultRecord{
+		recordID, err := reg.Write(registry.FaultRecord{
 			FaultType: faultType,
 			Target:    target,
 			Runtime:   runtimeTypeName(client),
@@ -69,45 +102,67 @@ func (m *ResourceChaosManager) ScheduleRestore(client ContainerRuntime, target s
 			Params:    params,
 		})
 		if err == nil {
+			m.mu.Lock()
 			m.activeRecordIDs[target] = recordID
+			m.mu.Unlock()
 		}
 	}
 
-	m.timers[target] = time.AfterFunc(time.Duration(duration)*time.Second, func() {
+	timer := time.AfterFunc(time.Duration(duration)*time.Second, func() {
 		m.mu.Lock()
 		delete(m.timers, target)
 		m.mu.Unlock()
 		// Use a background context for timer-triggered restores since no caller context exists
 		_, _ = client.UpdateContainerResources(context.Background(), target, 0, 0, 0)
 		// Mark the registry record as reverted after successful restore
-		if m.registry != nil {
-			m.mu.Lock()
-			id, ok := m.activeRecordIDs[target]
-			if ok {
-				delete(m.activeRecordIDs, target)
-			}
-			m.mu.Unlock()
-			if ok {
-				_ = m.registry.MarkReverted(id)
+		m.mu.Lock()
+		id, ok := m.activeRecordIDs[target]
+		if ok {
+			delete(m.activeRecordIDs, target)
+		}
+		m.mu.Unlock()
+		if ok {
+			if reg := m.getRegistry(); reg != nil {
+				_ = reg.MarkReverted(id)
 			}
 		}
 	})
+
+	m.mu.Lock()
+	m.timers[target] = timer
+	m.mu.Unlock()
 }
 
+// ClearAll stops all pending restore timers and reverts any remaining
+// registry records. Registry writes for different targets happen
+// concurrently so a slow revert for one target doesn't delay the others.
 func (m *ResourceChaosManager) ClearAll() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	for k, t := range m.timers {
 		t.Stop()
 		delete(m.timers, k)
 	}
-	// Mark any remaining resource records as reverted on graceful shutdown
-	if m.registry != nil {
-		for target, id := range m.activeRecordIDs {
-			_ = m.registry.MarkReverted(id)
-			delete(m.activeRecordIDs, target)
-		}
+	reg := m.registry
+	pending := make(map[string]string, len(m.activeRecordIDs))
+	for target, id := range m.activeRecordIDs {
+		pending[target] = id
 	}
+	m.activeRecordIDs = make(map[string]string)
+	m.mu.Unlock()
+
+	if reg == nil || len(pending) == 0 {
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, id := range pending {
+		wg.Add(1)
+		go func(recordID string) {
+			defer wg.Done()
+			_ = reg.MarkReverted(recordID)
+		}(id)
+	}
+	wg.Wait()
 }
 
 type ActionHandler func(ctx context.Context, client ContainerRuntime, target string, spec config.ActionSpec) (*ContainerInfo, error)

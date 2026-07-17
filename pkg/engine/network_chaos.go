@@ -22,14 +22,24 @@ func validateContainerName(name string) error {
 }
 
 type NetworkChaosManager struct {
+	// mu protects the maps below (active, timers, activeRecordIDs, targetLocks)
+	// and the registry field. It is only ever held for short, in-memory
+	// operations — never across an I/O call (tc exec, registry read/write).
 	mu       sync.Mutex
 	active   map[string]ContainerRuntime // container name → runtime used for injection
 	timers   map[string]*time.Timer
 	netIface string // configurable network interface (default: eth0)
 
 	// registry is the persistent fault store. May be nil if not configured.
-	registry         *registry.FaultRegistry
-	activeRecordIDs  map[string]string // container name → registry record ID
+	registry        *registry.FaultRegistry
+	activeRecordIDs map[string]string // container name → registry record ID
+
+	// targetLocks holds one mutex per container name. Holding a target's lock
+	// serializes injection/clear operations for THAT target only, so that a
+	// slow tc exec or registry write for one container never blocks
+	// operations on any other container. The map itself is protected by mu;
+	// entries are never removed (the target set is bounded by chaos.yaml).
+	targetLocks map[string]*sync.Mutex
 }
 
 func NewNetworkChaosManager() *NetworkChaosManager {
@@ -42,6 +52,7 @@ func NewNetworkChaosManager() *NetworkChaosManager {
 		timers:          make(map[string]*time.Timer),
 		netIface:        iface,
 		activeRecordIDs: make(map[string]string),
+		targetLocks:     make(map[string]*sync.Mutex),
 	}
 }
 
@@ -51,6 +62,27 @@ func (m *NetworkChaosManager) SetRegistry(r *registry.FaultRegistry) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.registry = r
+}
+
+func (m *NetworkChaosManager) getRegistry() *registry.FaultRegistry {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.registry
+}
+
+// lockFor returns the per-target mutex for name, creating it on first use.
+// Callers must hold the returned lock for the full duration of an
+// injection/clear operation on that target, including any I/O — but must
+// NOT hold mu while doing so.
+func (m *NetworkChaosManager) lockFor(name string) *sync.Mutex {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	l, ok := m.targetLocks[name]
+	if !ok {
+		l = &sync.Mutex{}
+		m.targetLocks[name] = l
+	}
+	return l
 }
 
 // execTc runs a tc command inside the target container via the runtime's Exec API.
@@ -67,32 +99,40 @@ func (m *NetworkChaosManager) execTc(ctx context.Context, runtime ContainerRunti
 	return nil
 }
 
-func (m *NetworkChaosManager) cancelTimer(containerName string) {
-	if t, ok := m.timers[containerName]; ok {
-		t.Stop()
-		delete(m.timers, containerName)
-	}
-}
-
+// applyRule installs a tc/netem rule on the target container. Concurrent
+// calls for DIFFERENT targets proceed fully in parallel; concurrent calls for
+// the SAME target are serialized via the per-target lock, since replacing a
+// rule requires an atomic "remove old, then add new" sequence.
 func (m *NetworkChaosManager) applyRule(ctx context.Context, runtime ContainerRuntime, name string, faultType registry.FaultType, faultParams map[string]any, tcArgs []string, duration *int) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	targetLock := m.lockFor(name)
+	targetLock.Lock()
+	defer targetLock.Unlock()
 
-	// If there's an existing rule for this container, remove it first
-	if existingRT, exists := m.active[name]; exists {
-		m.cancelTimer(name)
+	reg := m.getRegistry()
+
+	// If there's an existing rule for this container, remove it first.
+	m.mu.Lock()
+	existingRT, hadExisting := m.active[name]
+	if t, ok := m.timers[name]; ok {
+		t.Stop()
+		delete(m.timers, name)
+	}
+	prevRecordID, hadPrevRecord := m.activeRecordIDs[name]
+	m.mu.Unlock()
+
+	if hadExisting {
 		_ = m.execTc(ctx, existingRT, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
-		// Mark previous registry record as reverted (replaced by new injection)
-		if m.registry != nil {
-			if prevID, ok := m.activeRecordIDs[name]; ok {
-				_ = m.registry.MarkReverted(prevID)
-				delete(m.activeRecordIDs, name)
-			}
+		if reg != nil && hadPrevRecord {
+			_ = reg.MarkReverted(prevRecordID)
+			m.mu.Lock()
+			delete(m.activeRecordIDs, name)
+			m.mu.Unlock()
 		}
 	}
 
-	// Persist the fault BEFORE injection so a crash during injection is recoverable
-	if m.registry != nil {
+	// Persist the fault BEFORE injection so a crash during injection is recoverable.
+	var recordID string
+	if reg != nil {
 		var expiresAt *time.Time
 		if duration != nil && *duration > 0 {
 			t := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
@@ -103,7 +143,8 @@ func (m *NetworkChaosManager) applyRule(ctx context.Context, runtime ContainerRu
 			params[k] = v
 		}
 		params["iface"] = m.netIface
-		recordID, err := m.registry.Write(registry.FaultRecord{
+		var err error
+		recordID, err = reg.Write(registry.FaultRecord{
 			FaultType: faultType,
 			Target:    name,
 			Runtime:   runtimeTypeName(runtime),
@@ -111,29 +152,36 @@ func (m *NetworkChaosManager) applyRule(ctx context.Context, runtime ContainerRu
 			Params:    params,
 		})
 		if err == nil {
+			m.mu.Lock()
 			m.activeRecordIDs[name] = recordID
+			m.mu.Unlock()
 		}
 	}
 
 	addArgs := append([]string{"qdisc", "add", "dev", m.netIface, "root"}, tcArgs...)
 	if err := m.execTc(ctx, runtime, name, addArgs); err != nil {
 		// Injection failed — mark the registry record as reverted (cleanup)
-		if m.registry != nil {
-			if id, ok := m.activeRecordIDs[name]; ok {
-				_ = m.registry.MarkReverted(id)
-				delete(m.activeRecordIDs, name)
-			}
+		if reg != nil && recordID != "" {
+			_ = reg.MarkReverted(recordID)
+			m.mu.Lock()
+			delete(m.activeRecordIDs, name)
+			m.mu.Unlock()
 		}
 		return fmt.Errorf("network chaos injection failed for '%s': %w", name, err)
 	}
 
+	m.mu.Lock()
 	m.active[name] = runtime
+	m.mu.Unlock()
 
 	if duration != nil && *duration > 0 {
 		clearName := name
-		m.timers[name] = time.AfterFunc(time.Duration(*duration)*time.Second, func() {
+		timer := time.AfterFunc(time.Duration(*duration)*time.Second, func() {
 			m.Clear(clearName)
 		})
+		m.mu.Lock()
+		m.timers[name] = timer
+		m.mu.Unlock()
 	}
 	return nil
 }
@@ -162,46 +210,63 @@ func (m *NetworkChaosManager) InjectLoss(ctx context.Context, runtime ContainerR
 }
 
 // Clear removes active network chaos rules from a specific container.
+// Concurrent Clear/applyRule calls for other targets are unaffected.
 func (m *NetworkChaosManager) Clear(name string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	targetLock := m.lockFor(name)
+	targetLock.Lock()
+	defer targetLock.Unlock()
 
-	m.cancelTimer(name)
-	if runtime, exists := m.active[name]; exists {
-		_ = m.execTc(context.Background(), runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
-		delete(m.active, name)
+	reg := m.getRegistry()
+
+	m.mu.Lock()
+	if t, ok := m.timers[name]; ok {
+		t.Stop()
+		delete(m.timers, name)
 	}
-	// Mark registry record as reverted after successful clear
-	if m.registry != nil {
-		if id, ok := m.activeRecordIDs[name]; ok {
-			_ = m.registry.MarkReverted(id)
+	runtime, exists := m.active[name]
+	m.mu.Unlock()
+
+	if exists {
+		_ = m.execTc(context.Background(), runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
+		m.mu.Lock()
+		delete(m.active, name)
+		m.mu.Unlock()
+	}
+
+	if reg != nil {
+		m.mu.Lock()
+		id, ok := m.activeRecordIDs[name]
+		if ok {
 			delete(m.activeRecordIDs, name)
+		}
+		m.mu.Unlock()
+		if ok {
+			_ = reg.MarkReverted(id)
 		}
 	}
 }
 
 // ClearAll removes all active network chaos rules across all containers.
+// Each target is cleared concurrently via Clear, so a slow revert for one
+// container does not delay reverting the others.
 func (m *NetworkChaosManager) ClearAll() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
+	names := make(map[string]struct{}, len(m.active))
+	for name := range m.active {
+		names[name] = struct{}{}
+	}
 	for name := range m.timers {
-		if t, ok := m.timers[name]; ok {
-			t.Stop()
-		}
+		names[name] = struct{}{}
 	}
-	m.timers = make(map[string]*time.Timer)
+	m.mu.Unlock()
 
-	for name, runtime := range m.active {
-		_ = m.execTc(context.Background(), runtime, name, []string{"qdisc", "del", "dev", m.netIface, "root"})
+	var wg sync.WaitGroup
+	for name := range names {
+		wg.Add(1)
+		go func(n string) {
+			defer wg.Done()
+			m.Clear(n)
+		}(name)
 	}
-	m.active = make(map[string]ContainerRuntime)
-
-	// Mark all network records as reverted
-	if m.registry != nil {
-		for name, id := range m.activeRecordIDs {
-			_ = m.registry.MarkReverted(id)
-			delete(m.activeRecordIDs, name)
-		}
-	}
+	wg.Wait()
 }

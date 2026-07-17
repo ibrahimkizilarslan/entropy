@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/registry"
 )
@@ -26,10 +27,14 @@ type MockRuntime struct {
 	UnpauseErr error
 	ExecErr    error
 	ExecExit   int
-	DelayErr   error
-	LossErr    error
-	UpdateErr  error
-	ListErr    error
+	// ExecDelay, if set, makes ExecCommand block for this long (or until ctx
+	// is cancelled) before returning. Used to simulate slow I/O (e.g. a real
+	// Docker exec or Kubernetes SPDY stream) in concurrency tests.
+	ExecDelay time.Duration
+	DelayErr  error
+	LossErr   error
+	UpdateErr error
+	ListErr   error
 }
 
 type MockCall struct {
@@ -168,6 +173,13 @@ func (m *MockRuntime) InjectNetworkLoss(ctx context.Context, target string, loss
 
 func (m *MockRuntime) ExecCommand(ctx context.Context, name string, cmd []string) (int, error) {
 	m.record("ExecCommand", name, cmd)
+	if m.ExecDelay > 0 {
+		select {
+		case <-time.After(m.ExecDelay):
+		case <-ctx.Done():
+			return -1, ctx.Err()
+		}
+	}
 	if m.ExecErr != nil {
 		return -1, m.ExecErr
 	}

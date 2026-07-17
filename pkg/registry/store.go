@@ -179,7 +179,16 @@ func (r *FaultRegistry) Path() string {
 // persist writes the in-memory state to disk atomically using the
 // write-temp → fsync → rename pattern. This guarantees that the registry
 // file is never left in a partially-written (corrupt) state after a crash.
+//
+// persistMu serializes the whole write-temp/fsync/rename sequence across
+// concurrent callers (see the FaultRegistry.persistMu doc comment): without
+// it, two concurrent persist() calls racing on the same temp file path could
+// let one call's rename win with a snapshot that is missing the other
+// call's already-committed in-memory record.
 func (r *FaultRegistry) persist() error {
+	r.persistMu.Lock()
+	defer r.persistMu.Unlock()
+
 	r.mu.RLock()
 	records := make([]*FaultRecord, 0, len(r.records))
 	for _, rec := range r.records {
