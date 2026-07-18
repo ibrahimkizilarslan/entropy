@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `entropy --version` and `entropy version` now print the build version
+  (previously the `Version` variable was set via ldflags but never wired
+  into the root command, so `--version` was not recognized). See
+  [pkg/cli/root.go](pkg/cli/root.go).
+
 ### Changed
 - `worker.RunDaemon` now takes a single `DaemonOptions` struct (with a
   `SafetyOverrides` sub-struct for the CLI-flag overrides) instead of six
