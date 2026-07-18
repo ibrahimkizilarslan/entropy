@@ -238,5 +238,20 @@ func (r *FaultRegistry) persist() error {
 		return fmt.Errorf("registry: atomic rename failed: %w", err)
 	}
 
+	// fsync the parent directory so the rename itself is durable. A rename
+	// is a metadata operation on the containing directory; POSIX only
+	// guarantees it survives a crash once that directory's own fsync has
+	// completed — without this, a crash immediately after Rename could
+	// leave the directory entry pointing at the old file on some
+	// filesystems/mount options, even though Rename itself returned
+	// successfully. Best-effort: some platforms (Windows) don't support
+	// syncing a directory handle, so errors here are not fatal — the file
+	// content itself is already fsync'd above, this only hardens the
+	// rename's durability where the OS allows it.
+	if dir, err := os.Open(filepath.Dir(r.path)); err == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
+	}
+
 	return nil
 }

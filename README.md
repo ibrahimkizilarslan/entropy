@@ -11,7 +11,7 @@
 
 > 🚀 **v2.0.0 STABLE RELEASED**  
 > Entropy `v2.0.0` is now stable and introduces a completely **Crash-Safe Architecture**. 
-> The engine now features a Persistent Fault Registry (WAL) that guarantees zero orphaned chaos. If the daemon crashes, it will automatically recover and clean up your infrastructure on the next boot.
+> The engine now features a Persistent Fault Registry that guarantees zero orphaned chaos. If the daemon crashes, it will automatically recover and clean up your infrastructure on the next boot.
 
 Entropy is a **developer-first, platform-agnostic chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
 
@@ -38,10 +38,10 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 With the release of **v2.0.0**, Entropy has evolved into a fully crash-safe, production-ready chaos engineering engine. The primary focus of this release is ensuring **Zero Orphaned Chaos**.
 
 **Key Architectural Advancements:**
-- **Persistent Fault Registry (WAL/State File):** Entropy maintains a durable, atomic record of all active chaos injections (stored locally at `~/.entropy/registry.json`).
+- **Persistent Fault Registry (Atomic State File):** Entropy maintains a durable, atomic record of all active chaos injections (stored locally at `~/.entropy/registry.json`). Every write is a full state snapshot committed via the write-temp → fsync → rename pattern (plus a parent-directory fsync for rename durability), never a partial or corrupt file, even if the process is killed mid-write.
 - **Auto-Recovery on Boot:** If the `entropy` daemon process is OOM-killed, forcefully terminated (`kill -9`), or unexpectedly restarted, it will read the fault registry upon booting, discover orphaned chaos rules on the cluster/docker engine, and automatically revert them before starting a new session.
 - **Background Expiry Watcher:** A background garbage collector continuously monitors for any chaos injections that failed to revert due to goroutine scheduling issues or system hangs, providing an extra layer of safety.
-- **Unified Local State:** We unified state tracking for BOTH Docker and Kubernetes targets via local WAL. This keeps Entropy dependency-free and avoids the need for cluster-admin privileges (no CRDs required).
+- **Unified Local State:** We unified state tracking for BOTH Docker and Kubernetes targets via the same local registry file. This keeps Entropy dependency-free and avoids the need for cluster-admin privileges (no CRDs required).
 
 ## Why Entropy?
 

@@ -23,8 +23,19 @@ and this project follows [Semantic Versioning](https://semver.org/).
   and lost the fact that the author had written `inject:` at all. Multiple
   step-type keys in a single step are also now rejected explicitly. See
   [pkg/config/schema.go](pkg/config/schema.go).
+- Corrected README references to the fault registry as a "WAL" (write-ahead
+  log) — the registry actually persists a full state snapshot on every
+  write, not an append-only log. Now described as a "Persistent Fault
+  Registry (Atomic State File)". No behavior change.
 
 ### Fixed
+- The fault registry's `persist()` now fsyncs the containing directory
+  after the atomic rename, hardening the rename's durability against a
+  crash immediately afterward (a rename is a metadata operation on the
+  directory; POSIX only guarantees it survives a crash once that
+  directory's own fsync has completed). Best-effort: harmless on platforms
+  that don't support syncing a directory handle. See
+  [pkg/registry/store.go](pkg/registry/store.go).
 - The chaos engine's main loop no longer blocks on a slow injection cycle
   when handling stop/Ctrl+C. Previously, `runCycle` (which can call a
   Docker/Kubernetes API, e.g. stopping a container or injecting network
