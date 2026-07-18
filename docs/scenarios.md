@@ -17,7 +17,11 @@ steps:
 
 ## Step Types
 
-Entropy supports three types of steps: `probe`, `inject`, and `wait`.
+Entropy supports three types of steps: `probe`, `inject`, and `wait`. Each
+step must have exactly one of these as its top-level key. A step with a
+recognized key but a missing required field (e.g. `inject:` without
+`target:`) fails with a specific error naming what's missing, rather than a
+generic "unknown step" error.
 
 ### 1. Probe Step
 Used to check the state of the system before, during, or after an injection. Entropy supports `http`, `tcp`, and `exec` probes.

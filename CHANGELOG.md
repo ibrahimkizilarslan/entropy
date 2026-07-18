@@ -7,6 +7,18 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- `ScenarioStep` YAML parsing now dispatches on which top-level key
+  (`wait`/`inject`/`probe`) is present, instead of guessing the step type
+  from which fields happen to be non-empty. A step with a recognized key
+  but a missing required field (e.g. `inject:` without `target:`) now fails
+  with a specific, actionable error instead of the previous generic
+  "unknown scenario step format" — the old field-sniffing approach never
+  matched the step's actual shape, so it silently fell through every case
+  and lost the fact that the author had written `inject:` at all. Multiple
+  step-type keys in a single step are also now rejected explicitly. See
+  [pkg/config/schema.go](pkg/config/schema.go).
+
 ### Fixed
 - The chaos engine's main loop no longer blocks on a slow injection cycle
   when handling stop/Ctrl+C. Previously, `runCycle` (which can call a

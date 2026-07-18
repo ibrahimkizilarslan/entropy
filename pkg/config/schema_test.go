@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	yaml "gopkg.in/yaml.v3"
@@ -258,4 +259,105 @@ probe:
 			t.Error("expected error for unknown step format")
 		}
 	})
+}
+
+// TestScenarioStep_UnmarshalYAML_MalformedSteps is a regression test for the
+// P2 key-based-dispatch fix: a step with a recognized key (wait/inject/
+// probe) but a missing required field must produce a specific,
+// actionable error — not the old generic "unknown scenario step format",
+// which field-sniffing produced because the malformed step never matched
+// any of the three shapes it tried.
+func TestScenarioStep_UnmarshalYAML_MalformedSteps(t *testing.T) {
+	tests := []struct {
+		name          string
+		yamlStr       string
+		wantErrSubstr string
+	}{
+		{
+			name: "inject missing target",
+			yamlStr: `
+inject:
+  action: stop
+`,
+			wantErrSubstr: "target",
+		},
+		{
+			name: "inject missing action",
+			yamlStr: `
+inject:
+  target: my-service
+`,
+			wantErrSubstr: "action",
+		},
+		{
+			name:          "wait with empty value",
+			yamlStr:       `wait: ""`,
+			wantErrSubstr: "duration",
+		},
+		{
+			name: "probe with no url/host_port/command",
+			yamlStr: `
+probe:
+  type: http
+  timeout: 5
+`,
+			wantErrSubstr: "url",
+		},
+		{
+			name: "multiple step keys in one step",
+			yamlStr: `
+wait: 5s
+inject:
+  action: stop
+  target: my-service
+`,
+			wantErrSubstr: "multiple step types",
+		},
+		{
+			name:          "no recognized step key",
+			yamlStr:       `some_typo: value`,
+			wantErrSubstr: "wait",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s ScenarioStep
+			err := yaml.Unmarshal([]byte(tt.yamlStr), &s)
+			if err == nil {
+				t.Fatalf("expected an error, got none (Type=%q)", s.Type)
+			}
+			if !strings.Contains(err.Error(), tt.wantErrSubstr) {
+				t.Errorf("expected error to mention %q, got: %v", tt.wantErrSubstr, err)
+			}
+		})
+	}
+}
+
+// TestScenarioStep_UnmarshalYAML_ValidStepsStillWork is a regression test
+// ensuring the key-based dispatch didn't change behavior for well-formed
+// steps — same YAML shapes as the pre-existing tests above, checked in bulk.
+func TestScenarioStep_UnmarshalYAML_ValidStepsStillWork(t *testing.T) {
+	tests := []struct {
+		name     string
+		yamlStr  string
+		wantType string
+	}{
+		{"wait", `wait: 10s`, "wait"},
+		{"inject", "inject:\n  action: pause\n  target: svc\n", "inject"},
+		{"probe url", "probe:\n  url: \"http://localhost/health\"\n", "probe"},
+		{"probe host_port", "probe:\n  host_port: \"localhost:6379\"\n", "probe"},
+		{"probe command", "probe:\n  type: exec\n  target: svc\n  command: \"cat /proc/uptime\"\n", "probe"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s ScenarioStep
+			if err := yaml.Unmarshal([]byte(tt.yamlStr), &s); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if s.Type != tt.wantType {
+				t.Errorf("expected Type=%q, got %q", tt.wantType, s.Type)
+			}
+		})
+	}
 }

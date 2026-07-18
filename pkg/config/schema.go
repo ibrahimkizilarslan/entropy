@@ -141,9 +141,45 @@ type probeStep struct {
 	Probe ProbeSpec `yaml:"probe"`
 }
 
+// UnmarshalYAML dispatches on which top-level key (wait/inject/probe) is
+// present in the step mapping, rather than guessing the step type from
+// which fields happen to be non-empty. The old field-sniffing approach
+// silently misclassified malformed steps: e.g. an `inject:` block missing
+// `target:` never matched the inject shape (since the check required
+// Target != ""), fell through to the probe check, failed that too, and
+// surfaced as a generic "unknown scenario step format" — no mention of the
+// `inject:` key the author actually wrote or what was missing from it.
+// Dispatching on the key first means a recognized-but-incomplete step now
+// gets a specific, actionable error instead.
 func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
-	var w waitStep
-	if err := value.Decode(&w); err == nil && w.Wait != "" {
+	if value.Kind != yaml.MappingNode {
+		return fmt.Errorf("scenario step must be a mapping with one of 'wait', 'inject', or 'probe' as the top-level key")
+	}
+
+	var stepKeys []string
+	for i := 0; i < len(value.Content)-1; i += 2 {
+		switch value.Content[i].Value {
+		case "wait", "inject", "probe":
+			stepKeys = append(stepKeys, value.Content[i].Value)
+		}
+	}
+	if len(stepKeys) > 1 {
+		return fmt.Errorf("scenario step has multiple step types (%s); each step must have exactly one of 'wait', 'inject', or 'probe'",
+			strings.Join(stepKeys, ", "))
+	}
+	if len(stepKeys) == 0 {
+		return fmt.Errorf("unknown scenario step: expected one of 'wait', 'inject', or 'probe' as the top-level key")
+	}
+
+	switch stepKeys[0] {
+	case "wait":
+		var w waitStep
+		if err := value.Decode(&w); err != nil {
+			return fmt.Errorf("invalid wait step: %w", err)
+		}
+		if w.Wait == "" {
+			return fmt.Errorf("wait step must specify a non-empty duration, e.g. 'wait: 5s'")
+		}
 		s.Type = "wait"
 		raw := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(w.Wait)), "s")
 		n, err := fmt.Sscanf(raw, "%d", &s.DurationS)
@@ -154,16 +190,31 @@ func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
 			return fmt.Errorf("wait duration must be non-negative, got %d", s.DurationS)
 		}
 		return nil
-	}
-	var i injectStep
-	if err := value.Decode(&i); err == nil && i.Inject.Target != "" {
+
+	case "inject":
+		var i injectStep
+		if err := value.Decode(&i); err != nil {
+			return fmt.Errorf("invalid inject step: %w", err)
+		}
+		if i.Inject.Target == "" {
+			return fmt.Errorf("inject step must specify a non-empty 'target'")
+		}
+		if i.Inject.Action.Name == "" {
+			return fmt.Errorf("inject step must specify an 'action'")
+		}
 		s.Type = "inject"
 		s.Action = &i.Inject.Action
 		s.Target = i.Inject.Target
 		return nil
-	}
-	var p probeStep
-	if err := value.Decode(&p); err == nil && (p.Probe.URL != "" || p.Probe.HostPort != "" || p.Probe.Command != "") {
+
+	default: // "probe"
+		var p probeStep
+		if err := value.Decode(&p); err != nil {
+			return fmt.Errorf("invalid probe step: %w", err)
+		}
+		if p.Probe.URL == "" && p.Probe.HostPort == "" && p.Probe.Command == "" {
+			return fmt.Errorf("probe step must specify one of 'url' (http probe), 'host_port' (tcp probe), or 'command' (exec probe)")
+		}
 		s.Type = "probe"
 		s.Probe = &p.Probe
 		if s.Probe.Type == "" {
@@ -174,7 +225,6 @@ func (s *ScenarioStep) UnmarshalYAML(value *yaml.Node) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("unknown scenario step format")
 }
 
 type ScenarioConfig struct {
