@@ -31,6 +31,14 @@ type MockRuntime struct {
 	// is cancelled) before returning. Used to simulate slow I/O (e.g. a real
 	// Docker exec or Kubernetes SPDY stream) in concurrency tests.
 	ExecDelay time.Duration
+	// StopDelay, if set, makes StopContainer block for this long (or until
+	// ctx is cancelled) before returning. Used to simulate a slow chaos
+	// injection cycle in engine-level concurrency tests.
+	StopDelay time.Duration
+	// StopPanic, if set, makes StopContainer panic instead of returning
+	// normally. Used to test that a panic during an async chaos cycle is
+	// recovered rather than crashing the process.
+	StopPanic bool
 	DelayErr  error
 	LossErr   error
 	UpdateErr error
@@ -81,6 +89,16 @@ func (m *MockRuntime) getContainer(name string) (*ContainerInfo, error) {
 
 func (m *MockRuntime) StopContainer(ctx context.Context, name string, timeout int) (*ContainerInfo, error) {
 	m.record("StopContainer", name, timeout)
+	if m.StopPanic {
+		panic("simulated panic in StopContainer")
+	}
+	if m.StopDelay > 0 {
+		select {
+		case <-time.After(m.StopDelay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	if m.StopErr != nil {
 		return nil, m.StopErr
 	}

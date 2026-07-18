@@ -7,6 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The chaos engine's main loop no longer blocks on a slow injection cycle
+  when handling stop/Ctrl+C. Previously, `runCycle` (which can call a
+  Docker/Kubernetes API, e.g. stopping a container or injecting network
+  chaos) ran synchronously inside the loop's `select`, so a slow API call
+  delayed the loop from observing the stop signal until the cycle finished.
+  `runCycle` now runs in a background goroutine via `startCycleAsync`, with
+  a single-flight guard (overlapping cycles could otherwise race on the
+  cooldown/max_down safety checks) and a `sync.WaitGroup` that `runLoop`
+  waits on before running cleanup, so cleanup never races with a cycle
+  that's still injecting or reverting chaos. The new goroutine has its own
+  panic recovery — `runLoop`'s existing recover only protects its own
+  goroutine, so without this, a panic during an async cycle would have
+  crashed the whole process instead of being logged. See
+  [pkg/engine/chaos_engine.go](pkg/engine/chaos_engine.go).
+
 ### Testing
 - Raised test coverage for `pkg/worker` (8.6% → 67.6%) and `pkg/cli`
   (13.0% → 26.1%), which previously had almost no coverage on the daemon

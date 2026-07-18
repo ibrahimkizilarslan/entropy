@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ibrahimkizilarslan/entropy/pkg/config"
@@ -42,6 +43,14 @@ type ChaosEngine struct {
 	history           []utils.EventRecord
 	lastInjectionTime time.Time
 	runtimeType       string
+
+	// cycleInFlight and cycleWG coordinate the async execution of runCycle
+	// (see startCycleAsync). cycleInFlight prevents overlapping cycles from
+	// racing on the cooldown/max_down safety checks; cycleWG lets runLoop
+	// wait for an in-flight cycle to finish before cleanup runs, so cleanup
+	// never races with a cycle that's still injecting/reverting chaos.
+	cycleInFlight atomic.Bool
+	cycleWG       sync.WaitGroup
 }
 
 func NewChaosEngine(cfg *config.ChaosConfig, runtimeType string, onEvent func(utils.EventRecord), logger *utils.ChaosLogger) *ChaosEngine {
@@ -177,7 +186,13 @@ func (e *ChaosEngine) runLoop() {
 	for {
 		select {
 		case <-e.stopEvent:
+			// Cancel first so any in-flight cycle's Docker/K8s API call
+			// unwinds quickly instead of running to completion, then wait
+			// for it to actually finish before cleanup — otherwise cleanup
+			// could race with a cycle that's still injecting or reverting
+			// chaos, leaving inconsistent state.
 			cancel()
+			e.cycleWG.Wait()
 			e.cleanup(runtime)
 			return
 		case <-ticker.C:
@@ -185,11 +200,45 @@ func (e *ChaosEngine) runLoop() {
 			if ticksSinceLastCycle >= e.config.Interval {
 				ticksSinceLastCycle = 0
 				if runtime != nil {
-					e.runCycle(ctx, runtime)
+					e.startCycleAsync(ctx, runtime)
 				}
 			}
 		}
 	}
+}
+
+// startCycleAsync runs runCycle in a background goroutine so a slow
+// injection (e.g. a stalled Docker/K8s API call) never blocks runLoop's
+// select from observing e.stopEvent. If a previous cycle is still in
+// flight, this tick is skipped rather than overlapping concurrent cycles,
+// which could race on the cooldown/max_down safety checks in runCycle.
+func (e *ChaosEngine) startCycleAsync(ctx context.Context, runtime ContainerRuntime) {
+	if !e.cycleInFlight.CompareAndSwap(false, true) {
+		return
+	}
+	e.cycleWG.Add(1)
+	go func() {
+		defer e.cycleWG.Done()
+		defer e.cycleInFlight.Store(false)
+		// runLoop's own recover() only protects its own goroutine — it
+		// cannot see a panic in this one. Recover here too so a panic in
+		// runCycle (e.g. an unexpected nil from a runtime response) logs
+		// and lets the daemon keep running, instead of silently crashing
+		// the whole process.
+		//
+		// Deliberately just log rather than also calling e.Stop(): if the
+		// panic happened while runCycle held e.mu (its Lock/Unlock pairs
+		// aren't deferred), Stop()'s own e.mu.Lock() would deadlock waiting
+		// on a mutex whose owner is gone.
+		defer func() {
+			if r := recover(); r != nil {
+				if e.logger != nil {
+					e.logger.LogError(fmt.Sprintf("PANIC recovered in chaos cycle: %v", r))
+				}
+			}
+		}()
+		e.runCycle(ctx, runtime)
+	}()
 }
 
 func (e *ChaosEngine) cleanup(runtime ContainerRuntime) {
