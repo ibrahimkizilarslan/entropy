@@ -9,11 +9,16 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ibrahimkizilarslan/entropy)](https://go.dev/)
 [![Release](https://img.shields.io/github/v/release/ibrahimkizilarslan/entropy?include_prereleases)](https://github.com/ibrahimkizilarslan/entropy/releases)
 
-> 🚀 **v2.0.0 STABLE RELEASED**  
-> Entropy `v2.0.0` is now stable and introduces a completely **Crash-Safe Architecture**. 
-> The engine now features a Persistent Fault Registry that guarantees zero orphaned chaos. If the daemon crashes, it will automatically recover and clean up your infrastructure on the next boot.
+> 🚀 **v3.0.0 RELEASED — Security & Reliability Hardening**
+> This release closes out a full engineering-quality pass: fail-closed target
+> validation, an exec-probe allowlist, dial-time SSRF protection, a real
+> production-environment guard, per-target concurrency (no more lock
+> contention between unrelated chaos targets), a responsive Ctrl+C on the
+> random-chaos daemon, and a hardened CI pipeline (`golangci-lint` +
+> `govulncheck` on every PR). **Contains breaking changes** — see
+> [Upgrading to v3.0.0](#upgrading-to-v300) before updating.
 
-Entropy is a **developer-first, platform-agnostic chaos engineering engine** designed to inject controlled faults into distributed microservice environments. 
+Entropy is a **developer-first, platform-agnostic chaos engineering engine** designed to inject controlled faults into distributed microservice environments.
 
 Written entirely in **Go** as a high-performance, single-binary distribution, Entropy helps teams validate system resilience, identify single points of failure, and confidently test hypothesis-driven scenarios. From local `docker-compose` topologies to production Kubernetes clusters, Entropy provides a seamless experience without requiring heavy agent installations.
 
@@ -29,19 +34,42 @@ Written entirely in **Go** as a high-performance, single-binary distribution, En
 - **Enterprise Resilience Doctor:** Analyze your topology for Single Points of Failure (SPOF), missing resource limits, missing probes, and privileged containers using `entropy doctor`.
 - **Topology Visualization:** Map your system's architecture and analyze the potential blast radius of failures with `entropy topology`.
 - **Hypothesis-Driven Scenarios:** Define deterministic chaos experiments using a declarative YAML DSL. Execute actions, wait for state propagation, and probe APIs.
-- **Multi-Protocol Probes:** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker/K8s Exec probes** to run safe diagnostic commands inside containers. *(Note: Shell execution like `sh -c` is intentionally blocked for security).*
-- **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes ephemeral containers) leaving your system pristine.
+- **Multi-Protocol Probes:** Don't just ping HTTP endpoints. Verify infrastructure health using **TCP socket checks** and **Docker/K8s Exec probes** to run safe diagnostic commands inside containers, protected by a read-only command allowlist.
+- **Graceful Rollback:** Safety first. If you abort an experiment with `Ctrl+C`, Entropy intercepts the signal and automatically reverts all injected chaos (unpauses containers, removes ephemeral containers) leaving your system pristine — and the daemon's random-chaos loop stays responsive to `Ctrl+C` even mid-injection.
 - **Network Degradation:** Inject precise network latency, packet loss, and jitter using Linux `tc` and `netem`.
+- **Crash-Safe by Design:** A persistent, atomic fault registry means the engine can crash, get OOM-killed, or be forcefully restarted without leaving orphaned chaos behind.
 
-## v2.0.0 Stable: Crash-Safe Architecture
+## Security by Default
 
-With the release of **v2.0.0**, Entropy has evolved into a fully crash-safe, production-ready chaos engineering engine. The primary focus of this release is ensuring **Zero Orphaned Chaos**.
+Entropy intentionally disrupts running services — so its own safety rails
+matter as much as the chaos it injects. As of v3.0.0:
+
+- **Fail-closed target validation.** `entropy inject` refuses to run if its
+  allow-list config can't be loaded, instead of silently allowing *any*
+  container/pod on the host. Bypass only via explicit `--skip-validation`.
+- **Allowlisted exec probes.** Scenario `exec` probes only permit a small set
+  of read-only diagnostic commands (`cat`, `ls`, `stat`, `ps`, `grep`, …) —
+  not a blocklist of "known-bad" commands, which is trivially bypassed.
+  Extend it with `ENTROPY_EXEC_ALLOWLIST`.
+- **Dial-time SSRF protection.** `http`/`tcp` probe targets are validated
+  against the *actual IP being connected to* (via `net.Dialer.Control`), not
+  just the hostname — closing the DNS-rebinding gap a hostname-only check
+  would miss. Cloud metadata endpoints are always blocked.
+- **A production guard that actually guards.** Entropy refuses to start
+  against a Docker context or Kubernetes cluster whose name looks like
+  production (`prod-us-east`, `acme-production`, …), not just an opt-in env
+  var nobody remembers to set.
+
+See [SECURITY.md](SECURITY.md) for the full policy and [CHANGELOG.md](CHANGELOG.md#300---2026-07-18) for implementation details.
+
+## Crash-Safe Architecture
 
 **Key Architectural Advancements:**
 - **Persistent Fault Registry (Atomic State File):** Entropy maintains a durable, atomic record of all active chaos injections (stored locally at `~/.entropy/registry.json`). Every write is a full state snapshot committed via the write-temp → fsync → rename pattern (plus a parent-directory fsync for rename durability), never a partial or corrupt file, even if the process is killed mid-write.
 - **Auto-Recovery on Boot:** If the `entropy` daemon process is OOM-killed, forcefully terminated (`kill -9`), or unexpectedly restarted, it will read the fault registry upon booting, discover orphaned chaos rules on the cluster/docker engine, and automatically revert them before starting a new session.
 - **Background Expiry Watcher:** A background garbage collector continuously monitors for any chaos injections that failed to revert due to goroutine scheduling issues or system hangs, providing an extra layer of safety.
 - **Unified Local State:** We unified state tracking for BOTH Docker and Kubernetes targets via the same local registry file. This keeps Entropy dependency-free and avoids the need for cluster-admin privileges (no CRDs required).
+- **Per-Target Concurrency:** Network and resource chaos injection/revert use per-target locking — a slow operation on one container (a stalled Docker exec, a hung Kubernetes SPDY stream) no longer blocks injection or revert on every other container.
 
 ## Why Entropy?
 
@@ -54,7 +82,7 @@ Unlike traditional chaos engineering tools that are often heavy, Kubernetes-only
 | **Setup Complexity** | Zero-config (Single binary) | High (Helm + CRDs) | High (Helm + CRDs) | High |
 | **Local Testing** | ✅ First-class support | ❌ Difficult | ❌ Difficult | ❌ No |
 | **Scenario DSL** | ✅ Yes (YAML) | ✅ Yes | ✅ Yes | ❌ Random only |
-| **SSRF Protection** | ✅ Built-in | ❌ Manual | ❌ Manual | ❌ N/A |
+| **SSRF Protection** | ✅ Dial-time, built-in | ❌ Manual | ❌ Manual | ❌ N/A |
 
 ## Architecture & Vision
 
@@ -118,11 +146,11 @@ You can install Entropy using Go or by building from source.
 
 ## Prerequisites
 
-- **Go:** `1.26.0+` (from `go.mod`)
+- **Go:** `1.26.5+` (from `go.mod`)
 - **Docker:** Running local Docker daemon (Docker Desktop or native Linux engine)
 - **Compose files for discovery:** `docker-compose.yml`, `docker-compose.yaml`, or `compose.yaml`
 - **OS support:** Linux, macOS, and Windows for Docker-based chaos actions
-- **Network chaos dependencies (Linux host only):** `sudo`, `nsenter`, and `tc`/`netem` are required for `delay` and `loss` actions
+- **Network chaos dependencies:** `delay`/`loss` actions run `tc`/`netem` *inside* the target container (via `exec`) — the target image needs `iproute2` and the `NET_ADMIN` capability. No host-level `sudo`/`nsenter` required.
 
 ### Method 1: Global Install (Recommended)
 This installs the binary to your `$GOPATH/bin` folder, allowing you to run it from anywhere.
@@ -230,6 +258,25 @@ Run it with automatic demo environment lifecycle:
 
 ---
 
+## Upgrading to v3.0.0
+
+v3.0.0 closes two security gaps that previously allowed unsafe fallback
+behavior. Both changes are intentional and **not** backward compatible:
+
+1. **`entropy inject` now fails closed.** If its allow-list config
+   (`chaos.yaml` by default) can't be loaded, `inject` refuses to run instead
+   of silently allowing any target. If you rely on running `inject` without a
+   config file, pass `--skip-validation` explicitly going forward.
+2. **Exec probe commands are now allowlisted, not blocklisted.** Only a small
+   set of read-only diagnostics is permitted by default (`cat`, `ls`, `stat`,
+   `test`, `true`, `false`, `echo`, `pgrep`, `ps`, `head`, `tail`, `wc`,
+   `grep`). If your scenarios use `exec` probes with other commands, set
+   `ENTROPY_EXEC_ALLOWLIST` (comma-separated) to extend the allowlist.
+
+See the [v3.0.0 changelog entry](CHANGELOG.md#300---2026-07-18) for the complete list of changes, including non-breaking security and reliability improvements.
+
+---
+
 ## Troubleshooting: "Command Not Found"
 
 If you see `entropy: command not found`, it is likely for one of two reasons:
@@ -248,6 +295,10 @@ Entropy can be configured via flags or environment variables:
 | `ENTROPY_K8S_NAMESPACE` | Kubernetes namespace to target | `default` |
 | `ENTROPY_NET_INTERFACE` | Network interface for `tc` injection | `eth0` |
 | `KUBECONFIG` | Path to your Kubernetes config file | `~/.kube/config` |
+| `ENTROPY_REGISTRY_PATH` | Path to the persistent fault registry file | `~/.entropy/registry.json` |
+| `ENTROPY_ALLOW_PRODUCTION` | Bypass the production-environment guard | `false` |
+| `ENTROPY_ALLOW_PRIVATE_NETWORKS` | Allow `http`/`tcp` scenario probes to target private/loopback/link-local IPs. Cloud metadata IPs are always blocked regardless. | `true` |
+| `ENTROPY_EXEC_ALLOWLIST` | Comma-separated list of additional executables permitted in `exec` scenario probes | *(none)* |
 
 ## Documentation
 
