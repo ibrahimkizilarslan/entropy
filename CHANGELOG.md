@@ -7,6 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Testing
+- Raised test coverage for `pkg/worker` (8.6% → 67.6%) and `pkg/cli`
+  (13.0% → 26.1%), which previously had almost no coverage on the daemon
+  lifecycle and CLI command wiring.
+  - `worker.RunDaemon` was split into `applySafetyOverrides` and
+    `runDaemonLoop`, with the state directory and stop signal channel now
+    injectable. This allows driving the daemon's actual start → write-
+    state → stop-signal → clear-state lifecycle in a test without a live
+    Docker daemon or real OS signal delivery. See
+    [pkg/worker/daemon.go](pkg/worker/daemon.go).
+  - Added tests that call `doctorCmd.Run`, `topologyCmd.Run`,
+    `validateCmd.Run`, and `initCmd.Run` directly (rather than only their
+    underlying `engine`/`config` helpers), exercising the real command
+    wiring for the commands that don't require a live Docker/Kubernetes
+    connection.
+
 ### Security
 - Strengthened the production-safety guard for the Docker and Kubernetes
   runtimes. Previously it only checked `ENTROPY_ENVIRONMENT=production`, an

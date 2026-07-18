@@ -11,12 +11,24 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
+// RunDaemon loads the config at configPath, starts the chaos engine, and
+// blocks until an interrupt/terminate signal is received.
 func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *bool, maxDown *int, cooldown *int) error {
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		return err
 	}
+	applySafetyOverrides(cfg, dryRun, maxDown, cooldown)
 
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	return runDaemonLoop(cfg, runtimeType, logFormat, configPath, "", stop)
+}
+
+// applySafetyOverrides applies CLI flag overrides (when non-nil) on top of
+// the values loaded from the config file.
+func applySafetyOverrides(cfg *config.ChaosConfig, dryRun *bool, maxDown *int, cooldown *int) {
 	if dryRun != nil {
 		cfg.Safety.DryRun = *dryRun
 	}
@@ -26,8 +38,17 @@ func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *
 	if cooldown != nil {
 		cfg.Safety.Cooldown = *cooldown
 	}
+}
 
-	state := utils.NewStateManager("")
+// runDaemonLoop contains the daemon's core lifecycle: wire up state/logging,
+// start the chaos engine, wait for a stop signal, then shut down cleanly.
+//
+// stateDir and stop are injectable so this can be exercised in tests without
+// touching the real CWD-relative .entropy directory or depending on OS
+// signal delivery. stateDir="" uses the default (CWD-relative) directory,
+// matching RunDaemon's production behavior.
+func runDaemonLoop(cfg *config.ChaosConfig, runtimeType, logFormat, configPath, stateDir string, stop <-chan os.Signal) error {
+	state := utils.NewStateManager(stateDir)
 	logger, err := utils.NewChaosLogger(state.LogFile(), logFormat)
 	if err != nil {
 		return err
@@ -76,14 +97,11 @@ func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *
 		logger.LogError("Failed to initialize state file: " + err.Error())
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
 	if err := chaosEngine.Start(); err != nil {
 		return err
 	}
 
-	<-c
+	<-stop
 	chaosEngine.Stop()
 	if err := state.Clear(); err != nil {
 		logger.LogError("Failed to clear state file on exit: " + err.Error())

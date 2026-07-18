@@ -120,6 +120,51 @@ func TestInitCommandForceFlag(t *testing.T) {
 	}
 }
 
+// TestInitCmdRun_Success drives the actual initCmd.Run closure against a
+// temp directory containing a minimal docker-compose.yml, and verifies it
+// generates a valid chaos.yaml. This exercises the real command wiring
+// (flag reads, discovery dispatch, file generation) rather than just the
+// underlying engine helpers, which the tests above already cover directly.
+//
+// Only the success path is driven directly in-process: initCmd.Run calls
+// os.Exit(1) on every error branch (existing chaos.yaml without --force,
+// discovery failure, generation failure), which would terminate the test
+// binary.
+func TestInitCmdRun_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	composeContent := `
+services:
+  service-a:
+    image: nginx
+  service-b:
+    image: redis
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "docker-compose.yml"), []byte(composeContent), 0644); err != nil {
+		t.Fatalf("failed to write docker-compose.yml: %v", err)
+	}
+
+	t.Chdir(tmpDir)
+
+	oldRuntimeType := runtimeType
+	runtimeType = "docker"
+	defer func() { runtimeType = oldRuntimeType }()
+
+	// force=false is fine here since chaos.yaml doesn't exist yet in tmpDir.
+	if err := initCmd.Flags().Set("force", "false"); err != nil {
+		t.Fatalf("failed to set force flag: %v", err)
+	}
+
+	initCmd.Run(initCmd, []string{})
+
+	cfg, err := config.LoadConfig(filepath.Join(tmpDir, "chaos.yaml"))
+	if err != nil {
+		t.Fatalf("expected initCmd.Run to generate a valid chaos.yaml, got load error: %v", err)
+	}
+	if len(cfg.Targets) != 2 {
+		t.Errorf("expected 2 discovered targets, got %d: %v", len(cfg.Targets), cfg.Targets)
+	}
+}
+
 func TestChaosConfigValidation(t *testing.T) {
 	tests := []struct {
 		name        string
