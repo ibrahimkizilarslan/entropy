@@ -58,7 +58,12 @@ func TestRunDaemonWithInvalidConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config is invalid
-	err := RunDaemon(configPath, "docker", "text", &dryRun, &maxDown, &cooldown)
+	err := RunDaemon(DaemonOptions{
+		ConfigPath:  configPath,
+		RuntimeType: "docker",
+		LogFormat:   "text",
+		Overrides:   SafetyOverrides{DryRun: &dryRun, MaxDown: &maxDown, Cooldown: &cooldown},
+	})
 	if err == nil {
 		t.Error("Expected error when loading invalid config")
 	}
@@ -126,7 +131,12 @@ func TestRunDaemonWithMissingConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config file doesn't exist
-	err := RunDaemon(nonExistentPath, "docker", "text", &dryRun, &maxDown, &cooldown)
+	err := RunDaemon(DaemonOptions{
+		ConfigPath:  nonExistentPath,
+		RuntimeType: "docker",
+		LogFormat:   "text",
+		Overrides:   SafetyOverrides{DryRun: &dryRun, MaxDown: &maxDown, Cooldown: &cooldown},
+	})
 	if err == nil {
 		t.Error("Expected error when config file is missing")
 	}
@@ -138,7 +148,7 @@ func TestApplySafetyOverrides_NilPointersLeaveDefaultsUnchanged(t *testing.T) {
 	cfg := &config.ChaosConfig{
 		Safety: config.SafetyConfig{DryRun: false, MaxDown: 1, Cooldown: 30},
 	}
-	applySafetyOverrides(cfg, nil, nil, nil)
+	applySafetyOverrides(cfg, SafetyOverrides{})
 
 	if cfg.Safety.DryRun != false || cfg.Safety.MaxDown != 1 || cfg.Safety.Cooldown != 30 {
 		t.Errorf("expected config unchanged with nil overrides, got %+v", cfg.Safety)
@@ -152,7 +162,7 @@ func TestApplySafetyOverrides_NonNilPointersOverride(t *testing.T) {
 	dryRun := true
 	maxDown := 5
 	cooldown := 99
-	applySafetyOverrides(cfg, &dryRun, &maxDown, &cooldown)
+	applySafetyOverrides(cfg, SafetyOverrides{DryRun: &dryRun, MaxDown: &maxDown, Cooldown: &cooldown})
 
 	if cfg.Safety.DryRun != true {
 		t.Errorf("expected DryRun overridden to true, got %v", cfg.Safety.DryRun)

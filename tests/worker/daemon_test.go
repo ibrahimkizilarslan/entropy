@@ -37,7 +37,12 @@ safety:
 	// Run daemon in a goroutine
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- worker.RunDaemon(configPath, "docker", "text", &dryRun, &maxDown, &cooldown)
+		errCh <- worker.RunDaemon(worker.DaemonOptions{
+			ConfigPath:  configPath,
+			RuntimeType: "docker",
+			LogFormat:   "text",
+			Overrides:   worker.SafetyOverrides{DryRun: &dryRun, MaxDown: &maxDown, Cooldown: &cooldown},
+		})
 	}()
 
 	// Wait a bit for initialization
@@ -78,7 +83,12 @@ func TestRunDaemonWithInvalidConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config is invalid
-	err := worker.RunDaemon(configPath, "docker", "text", &dryRun, &maxDown, &cooldown)
+	err := worker.RunDaemon(worker.DaemonOptions{
+		ConfigPath:  configPath,
+		RuntimeType: "docker",
+		LogFormat:   "text",
+		Overrides:   worker.SafetyOverrides{DryRun: &dryRun, MaxDown: &maxDown, Cooldown: &cooldown},
+	})
 	if err == nil {
 		t.Error("Expected error when loading invalid config")
 	}
@@ -146,7 +156,12 @@ func TestRunDaemonWithMissingConfig(t *testing.T) {
 	cooldown := 30
 
 	// RunDaemon should fail when config file doesn't exist
-	err := worker.RunDaemon(nonExistentPath, "docker", "text", &dryRun, &maxDown, &cooldown)
+	err := worker.RunDaemon(worker.DaemonOptions{
+		ConfigPath:  nonExistentPath,
+		RuntimeType: "docker",
+		LogFormat:   "text",
+		Overrides:   worker.SafetyOverrides{DryRun: &dryRun, MaxDown: &maxDown, Cooldown: &cooldown},
+	})
 	if err == nil {
 		t.Error("Expected error when config file is missing")
 	}
