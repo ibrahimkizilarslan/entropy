@@ -6,7 +6,7 @@ require (
 	github.com/docker/docker v24.0.9+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/pterm/pterm v0.12.79
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.1
 	k8s.io/apimachinery v0.36.1
