@@ -70,20 +70,12 @@ func (d *DockerClient) SetRegistry(r *registry.FaultRegistry) {
 }
 
 func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
-	// 0. Safety: prevent accidental use in production environments
-	if os.Getenv("ENTROPY_ENVIRONMENT") == "production" && os.Getenv("ENTROPY_ALLOW_PRODUCTION") != "true" {
-		return nil, fmt.Errorf("refusing to run in production environment. Set ENTROPY_ALLOW_PRODUCTION=true to override")
-	}
-
-	// 1. Explicit DOCKER_HOST bypasses everything
-	if os.Getenv("DOCKER_HOST") != "" {
-		return tryConnectWithOpts(allowedTargets, client.FromEnv)
-	}
-
 	homeDir, _ := os.UserHomeDir()
 	currentContext := ""
 
-	// 2. Try to read active context from ~/.docker/config.json
+	// Read the active Docker context from ~/.docker/config.json up front —
+	// it's used both for the production-safety check below and endpoint
+	// resolution further down.
 	if homeDir != "" {
 		data, err := os.ReadFile(filepath.Join(homeDir, ".docker", "config.json"))
 		if err == nil {
@@ -94,6 +86,20 @@ func NewDockerClient(allowedTargets []string) (*DockerClient, error) {
 				currentContext = cfg.CurrentContext
 			}
 		}
+	}
+
+	// 0. Safety: prevent accidental use in production environments.
+	// Note: if DOCKER_HOST is set, currentContext still reflects the local
+	// ~/.docker/config.json context (which may be unrelated to the host
+	// DOCKER_HOST actually points at) — this heuristic cannot see into a
+	// remote DOCKER_HOST target, only ENTROPY_ENVIRONMENT covers that case.
+	if err := checkProductionSafety(currentContext); err != nil {
+		return nil, err
+	}
+
+	// 1. Explicit DOCKER_HOST bypasses everything
+	if os.Getenv("DOCKER_HOST") != "" {
+		return tryConnectWithOpts(allowedTargets, client.FromEnv)
 	}
 
 	var endpoints []string

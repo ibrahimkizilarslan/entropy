@@ -7,6 +7,18 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+- Strengthened the production-safety guard for the Docker and Kubernetes
+  runtimes. Previously it only checked `ENTROPY_ENVIRONMENT=production`, an
+  Entropy-specific env var that real production environments have no reason
+  to set — making the guard effectively dead in practice. It now also
+  refuses to start when the active Docker context (`~/.docker/config.json`)
+  or Kubernetes kubeconfig context name looks like production (case-
+  insensitive match on `prod`/`production`, e.g. `prod-us-east`,
+  `acme-production`). Both checks are bypassed by
+  `ENTROPY_ALLOW_PRODUCTION=true`. See
+  [pkg/engine/safety.go](pkg/engine/safety.go).
+
 ### Added
 - CI now runs `golangci-lint` (config: `.golangci.yml`) and `govulncheck` on
   every push/PR, alongside the existing `go vet`/`go test` job. See

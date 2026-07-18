@@ -24,12 +24,15 @@ func resolveNamespace(namespace string) string {
 }
 
 // buildK8sConfig creates a *rest.Config by trying in-cluster config first,
-// then falling back to the KUBECONFIG env var or ~/.kube/config.
-func buildK8sConfig() (*rest.Config, error) {
+// then falling back to the KUBECONFIG env var or ~/.kube/config. It also
+// returns the active kubeconfig context name, used by callers that need it
+// for production-safety checks. The context name is empty for in-cluster
+// config, since the concept of a "context" doesn't apply there.
+func buildK8sConfig() (*rest.Config, string, error) {
 	// Try in-cluster config first (running inside a pod)
 	config, err := rest.InClusterConfig()
 	if err == nil {
-		return config, nil
+		return config, "", nil
 	}
 
 	// Fallback to kubeconfig file
@@ -41,21 +44,28 @@ func buildK8sConfig() (*rest.Config, error) {
 	}
 
 	if kubeconfig == "" {
-		return nil, fmt.Errorf("could not find kubeconfig. Set KUBECONFIG env or create ~/.kube/config")
+		return nil, "", fmt.Errorf("could not find kubeconfig. Set KUBECONFIG env or create ~/.kube/config")
 	}
 
 	config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build kubeconfig from %s: %w", kubeconfig, err)
+		return nil, "", fmt.Errorf("failed to build kubeconfig from %s: %w", kubeconfig, err)
 	}
 
-	return config, nil
+	contextName := ""
+	if rawConfig, loadErr := clientcmd.LoadFromFile(kubeconfig); loadErr == nil {
+		contextName = rawConfig.CurrentContext
+	}
+
+	return config, contextName, nil
 }
 
 // newK8sClientSet creates a Kubernetes clientset and resolves the target namespace.
 // This is the single source of truth for K8s client initialization across the codebase.
+// It is used by read-only operations (doctor, discovery), which don't need
+// the production-safety check that NewKubernetesClient applies.
 func newK8sClientSet(namespace string) (*kubernetes.Clientset, string, error) {
-	config, err := buildK8sConfig()
+	config, _, err := buildK8sConfig()
 	if err != nil {
 		return nil, "", err
 	}

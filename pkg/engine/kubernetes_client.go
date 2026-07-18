@@ -43,16 +43,16 @@ type KubernetesClient struct {
 }
 
 func NewKubernetesClient(allowedTargets []string) (*KubernetesClient, error) {
-	// 0. Safety: prevent accidental use in production environments
-	if os.Getenv("ENTROPY_ENVIRONMENT") == "production" && os.Getenv("ENTROPY_ALLOW_PRODUCTION") != "true" {
-		return nil, fmt.Errorf("refusing to run in production environment. Set ENTROPY_ALLOW_PRODUCTION=true to override")
-	}
-
 	// Build config and clientset from a single source of truth.
 	// Previously, buildK8sConfig() and newK8sClientSet() were called separately,
 	// creating two independent configs that could theoretically diverge.
-	config, err := buildK8sConfig()
+	config, contextName, err := buildK8sConfig()
 	if err != nil {
+		return nil, err
+	}
+
+	// 0. Safety: prevent accidental use in production environments
+	if err := checkProductionSafety(contextName); err != nil {
 		return nil, err
 	}
 
