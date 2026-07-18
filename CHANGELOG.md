@@ -7,6 +7,13 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- `worker.RunDaemon` now takes a single `DaemonOptions` struct (with a
+  `SafetyOverrides` sub-struct for the CLI-flag overrides) instead of six
+  positional parameters, three of which were pointers used purely as an
+  ad hoc "was this flag passed?" signal. Same behavior, clearer call sites.
+  See [pkg/worker/daemon.go](pkg/worker/daemon.go).
+
 ### Fixed
 - The chaos engine's main loop no longer blocks on a slow injection cycle
   when handling stop/Ctrl+C. Previously, `runCycle` (which can call a

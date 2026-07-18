@@ -18,10 +18,19 @@ var runWorkerCmd = &cobra.Command{
 		maxDown, _ := cmd.Flags().GetInt("max-down")
 		cooldown, _ := cmd.Flags().GetInt("cooldown")
 		logFormat, _ := cmd.Flags().GetString("log-format")
-
 		runtime, _ := cmd.Flags().GetString("runtime")
-		err := worker.RunDaemon(configPath, runtime, logFormat, &dryRun, &maxDown, &cooldown)
-		if err != nil {
+
+		opts := worker.DaemonOptions{
+			ConfigPath:  configPath,
+			RuntimeType: runtime,
+			LogFormat:   logFormat,
+			Overrides: worker.SafetyOverrides{
+				DryRun:   &dryRun,
+				MaxDown:  &maxDown,
+				Cooldown: &cooldown,
+			},
+		}
+		if err := worker.RunDaemon(opts); err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)
 		}

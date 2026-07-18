@@ -11,32 +11,50 @@ import (
 	"github.com/ibrahimkizilarslan/entropy/pkg/utils"
 )
 
-// RunDaemon loads the config at configPath, starts the chaos engine, and
-// blocks until an interrupt/terminate signal is received.
-func RunDaemon(configPath string, runtimeType string, logFormat string, dryRun *bool, maxDown *int, cooldown *int) error {
-	cfg, err := config.LoadConfig(configPath)
+// SafetyOverrides holds CLI-flag overrides applied on top of the safety
+// values loaded from the config file. Each field is a pointer so that "flag
+// not passed" (nil, keep the config file's value) can be distinguished from
+// "flag passed with a zero value" (non-nil, pointing at the zero value).
+type SafetyOverrides struct {
+	DryRun   *bool
+	MaxDown  *int
+	Cooldown *int
+}
+
+// DaemonOptions bundles the parameters needed to run the chaos daemon.
+type DaemonOptions struct {
+	ConfigPath  string
+	RuntimeType string
+	LogFormat   string
+	Overrides   SafetyOverrides
+}
+
+// RunDaemon loads the config at opts.ConfigPath, starts the chaos engine,
+// and blocks until an interrupt/terminate signal is received.
+func RunDaemon(opts DaemonOptions) error {
+	cfg, err := config.LoadConfig(opts.ConfigPath)
 	if err != nil {
 		return err
 	}
-	applySafetyOverrides(cfg, dryRun, maxDown, cooldown)
+	applySafetyOverrides(cfg, opts.Overrides)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	return runDaemonLoop(cfg, runtimeType, logFormat, configPath, "", stop)
+	return runDaemonLoop(cfg, opts.RuntimeType, opts.LogFormat, opts.ConfigPath, "", stop)
 }
 
 // applySafetyOverrides applies CLI flag overrides (when non-nil) on top of
 // the values loaded from the config file.
-func applySafetyOverrides(cfg *config.ChaosConfig, dryRun *bool, maxDown *int, cooldown *int) {
-	if dryRun != nil {
-		cfg.Safety.DryRun = *dryRun
+func applySafetyOverrides(cfg *config.ChaosConfig, overrides SafetyOverrides) {
+	if overrides.DryRun != nil {
+		cfg.Safety.DryRun = *overrides.DryRun
 	}
-	if maxDown != nil {
-		cfg.Safety.MaxDown = *maxDown
+	if overrides.MaxDown != nil {
+		cfg.Safety.MaxDown = *overrides.MaxDown
 	}
-	if cooldown != nil {
-		cfg.Safety.Cooldown = *cooldown
+	if overrides.Cooldown != nil {
+		cfg.Safety.Cooldown = *overrides.Cooldown
 	}
 }
 

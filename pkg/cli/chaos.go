@@ -77,7 +77,17 @@ var startCmd = &cobra.Command{
 			maxDownOpt := cfg.Safety.MaxDown
 			cooldownOpt := cfg.Safety.Cooldown
 			logFormat, _ := cmd.Flags().GetString("log-format")
-			if err := worker.RunDaemon(configPath, runtimeType, logFormat, &dryRunOpt, &maxDownOpt, &cooldownOpt); err != nil {
+			opts := worker.DaemonOptions{
+				ConfigPath:  configPath,
+				RuntimeType: runtimeType,
+				LogFormat:   logFormat,
+				Overrides: worker.SafetyOverrides{
+					DryRun:   &dryRunOpt,
+					MaxDown:  &maxDownOpt,
+					Cooldown: &cooldownOpt,
+				},
+			}
+			if err := worker.RunDaemon(opts); err != nil {
 				pterm.Error.Println(err)
 				os.Exit(1)
 			}
