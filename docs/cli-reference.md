@@ -91,6 +91,11 @@ Generates shell completion scripts.
 
 *   **Usage:** `entropy completion [bash|zsh|fish|powershell]`
 
+### `entropy version`
+Prints the entropy version. Equivalent to `entropy --version`.
+
+*   **Usage:** `entropy version` or `entropy --version`
+
 ## Scenario Commands
 
 The Scenario Engine allows for deterministic, hypothesis-driven testing rather than random chaos.

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -48,7 +50,7 @@ func TestRootCommandDescription(t *testing.T) {
 }
 
 func TestRootCommandHasSubcommands(t *testing.T) {
-	expectedCommands := []string{"init", "scenario", "start", "stop", "status", "logs", "cleanup", "topology", "doctor"}
+	expectedCommands := []string{"init", "scenario", "start", "stop", "status", "logs", "cleanup", "topology", "doctor", "version"}
 
 	for _, expectedCmd := range expectedCommands {
 		found := false
@@ -62,5 +64,48 @@ func TestRootCommandHasSubcommands(t *testing.T) {
 		if !found {
 			t.Errorf("Expected subcommand %q not found", expectedCmd)
 		}
+	}
+}
+
+// TestRootCommand_VersionIsWired verifies rootCmd.Version is set from the
+// package-level Version variable, enabling cobra's built-in --version flag.
+func TestRootCommand_VersionIsWired(t *testing.T) {
+	if rootCmd.Version != Version {
+		t.Errorf("rootCmd.Version = %q, want it wired to package Version %q", rootCmd.Version, Version)
+	}
+}
+
+// TestVersionFlag_PrintsVersion drives the actual --version flag through
+// rootCmd.Execute() and checks the configured Version string appears in the
+// output, so a future refactor that breaks the wiring (e.g. rootCmd.Version
+// no longer set, or the flag disabled) fails a test instead of only being
+// caught by manually running the binary.
+func TestVersionFlag_PrintsVersion(t *testing.T) {
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetArgs([]string{"--version"})
+	defer rootCmd.SetArgs(nil)
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("rootCmd.Execute() with --version failed: %v", err)
+	}
+	if !strings.Contains(out.String(), Version) {
+		t.Errorf("expected --version output to contain %q, got: %q", Version, out.String())
+	}
+}
+
+// TestVersionCmdRun_PrintsVersion drives the `entropy version` subcommand's
+// Run closure directly and checks it prints the configured Version.
+func TestVersionCmdRun_PrintsVersion(t *testing.T) {
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetArgs([]string{"version"})
+	defer rootCmd.SetArgs(nil)
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("rootCmd.Execute() with 'version' failed: %v", err)
+	}
+	if !strings.Contains(out.String(), Version) {
+		t.Errorf("expected 'version' subcommand output to contain %q, got: %q", Version, out.String())
 	}
 }
