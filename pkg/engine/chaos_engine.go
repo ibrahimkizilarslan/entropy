@@ -330,7 +330,11 @@ func (e *ChaosEngine) runCycle(ctx context.Context, runtime ContainerRuntime) {
 	if event.ResultStatus != "" && event.Error == "" {
 		if actionSpec.Name == "stop" || actionSpec.Name == "pause" {
 			e.downSet[target] = true
-		} else if actionSpec.Name == "restart" || actionSpec.Name == "unpause" {
+		} else if actionSpec.Name == "restart" {
+			// Note: "unpause" is intentionally not checked here — it is not
+			// a valid standalone action (see config.ValidActions /
+			// actionHandlers), so actionSpec.Name can never equal it in the
+			// random-chaos model. Pausing is undone via "restart".
 			delete(e.downSet, target)
 		}
 	}

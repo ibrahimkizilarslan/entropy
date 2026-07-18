@@ -33,6 +33,20 @@ and this project follows [Semantic Versioning](https://semver.org/).
   log) — the registry actually persists a full state snapshot on every
   write, not an append-only log. Now described as a "Persistent Fault
   Registry (Atomic State File)". No behavior change.
+- The `README.md` "Go Report Card" badge was a hand-authored static image
+  (`img.shields.io/badge/go%20report-A%2B-...`), not the real
+  goreportcard.com badge — it always showed "A+" regardless of the actual
+  score. Replaced with the real, dynamically-generated goreportcard.com
+  badge.
+- Backfilled `CHANGELOG.md` with entries for the previously-undocumented
+  `v0.1.0-beta.1` through `v2.0.0` releases (the file only had an
+  `[Unreleased]` section despite six published tags), derived from the
+  git history of each release range.
+- Removed an unreachable `"unpause"` check in `ChaosEngine.runCycle`
+  ([pkg/engine/chaos_engine.go](pkg/engine/chaos_engine.go)): `"unpause"`
+  is not a valid standalone action (see `config.ValidActions` /
+  `actionHandlers`), so `actionSpec.Name` can never equal it in the
+  random-chaos model. No behavior change.
 
 ### Fixed
 - The fault registry's `persist()` now fsyncs the containing directory
@@ -166,4 +180,76 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Updated `chaos.example.yaml` to reflect the latest supported action patterns.
 - Updated `chaos-scenario.example.yaml` to a runnable, fully English scenario example.
 
+## [2.0.0] - 2026-06-09
+
+### Added
+- Persistent Fault Registry (`pkg/registry`): a durable, atomic on-disk
+  record of every active chaos injection, enabling crash-safe recovery.
+- Auto-recovery on boot: orphaned faults from a previous crash are
+  discovered and reverted before a new engine session starts.
+- Background expiry watcher: sweeps faults whose scheduled auto-revert
+  timer was missed (e.g. due to a hang), as a second layer of safety.
+- `entropy registry list` / `entropy registry clear` commands and a
+  `recoverAll` flag for manual registry inspection and recovery.
+
+## [2.0.0-beta.1] - 2026-06-09
+
+### Security
+- Critical security hardening (6 fixes) across network chaos, probes, and
+  scenario lifecycle handling.
+
+### Changed
+- Runtime lookup and polling performance optimizations.
+- General code quality improvements.
+
+## [1.2.0] - 2026-06-06
+
+### Added
+- Network chaos duration handling for the Kubernetes runtime.
+- Network segmentation in the bundled distributed demo.
+- Error logging for previously-swallowed errors.
+
+### Changed
+- Migrated from `math/rand` to `math/rand/v2`.
+- Extracted the HTML report template to a separate file via `go:embed`.
+
+### Fixed
+- Restored the `cleanup` command with a working implementation.
+
+## [1.1.0] - 2026-05-26
+
+### Added
+- Configuration validation.
+
+### Changed
+- Enhanced engine observability.
+- Hardened core engine resilience and consolidated the Kubernetes client
+  construction into a single source of truth.
+
+## [1.0.0] - 2026-05-16
+
+### Added
+- Kubernetes runtime support: agentless chaos injection via ephemeral
+  containers (no DaemonSets, no node-level agents).
+- `ContainerRuntime` interface abstracting Docker and Kubernetes behind a
+  single API, with `context.Context` propagated through every call.
+- `entropy doctor` analysis for Kubernetes topologies.
+- `MockRuntime`-based behavioral test suite for the engine.
+- CI pipeline (GitHub Actions) and goreleaser-based release process.
+
+### Security
+- Hardened network chaos, probes, and scenario lifecycle handling.
+
+## [0.1.0-beta.1] - 2026-05-11
+
+Initial public release, ported from an earlier Python prototype
+(rebranded from "DevChaosKit" to "Entropy").
+
+### Added
+- Core chaos engine: Docker abstraction layer, engine core, CLI.
+- Network and resource chaos actions (delay, loss, CPU/memory limits).
+- Scenario Engine with HTTP probes and step execution.
+- `entropy init` for zero-config discovery of `docker-compose` services.
+- Bundled polyglot distributed microservices demo.
+- MkDocs Material documentation site.
 
