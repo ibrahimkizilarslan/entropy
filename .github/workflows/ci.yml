@@ -50,7 +50,10 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        # v7+ is required for golangci-lint v2 config support (.golangci.yml
+        # here uses `version: "2"`). golangci-lint-action@v6 only documents
+        # v1.x usage (e.g. `version: v1.64`) and fails to parse a v2 config.
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
 
