@@ -35,3 +35,7 @@ scenarios/
 
 # Entropy runtime state (PID, event log, state JSON)
 .entropy/
+
+# Scenario run artifacts (local testing)
+*.html
+test-scenario.yaml
