@@ -1,0 +1,66 @@
+<svg width="820" height="280" viewBox="0 0 820 280" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Entropy CLI Logo</title>
+<defs>
+  <linearGradient id="crackGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="1.0"/>
+    <stop offset="55%" stop-color="#ffffff" stop-opacity="0.6"/>
+    <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
+  </linearGradient>
+  <filter id="bloom" x="-100%" y="-30%" width="300%" height="160%">
+    <feGaussianBlur stdDeviation="7" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+  <filter id="shieldShadow">
+    <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000000" flood-opacity="0.55"/>
+  </filter>
+  <linearGradient id="textGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#f0f0f0"/>
+    <stop offset="100%" stop-color="#888888"/>
+  </linearGradient>
+</defs>
+
+<!-- KALKAN -->
+<g transform="translate(60, 18) scale(0.355)">
+  <g filter="url(#shieldShadow)">
+    <path fill="#111111" d="M340,95 L168,172 L168,352 L254,452 L340,492 L340,95Z"/>
+  </g>
+  <path fill="#ffffff" opacity="0.04" d="M340,95 L220,155 L205,310 L268,415 L340,455 L340,95Z"/>
+  <path fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.12" d="M340,95 L168,172 L168,352 L254,452 L340,492"/>
+
+  <g filter="url(#shieldShadow)" transform="translate(16,22) rotate(3,420,300)">
+    <path fill="#1e1e1e" d="M324,73 L496,150 L496,330 L410,430 L324,470 L324,73Z"/>
+  </g>
+  <path fill="#ffffff" opacity="0.03" transform="translate(16,22) rotate(3,420,300)"
+    d="M324,73 L440,138 L458,285 L395,388 L324,445 L324,73Z"/>
+  <path fill="none" stroke="#ffffff" stroke-width="1.0" opacity="0.08" transform="translate(16,22) rotate(3,420,300)"
+    d="M324,73 L496,150 L496,330 L410,430 L324,470"/>
+
+  <polygon fill="#ffffff"
+    points="328,88 352,88 385,240 372,252 360,310 348,318 342,492 330,492 318,318 308,310 295,252 282,240"/>
+  <polygon fill="#ffffff" points="334,100 346,100 354,150 344,154 336,150"/>
+  <polygon fill="#ffffff" points="337,118 349,113 362,158 351,162 339,156"/>
+
+  <ellipse cx="340" cy="155" rx="18" ry="70" fill="url(#crackGlow)" opacity="0.45" filter="url(#bloom)"/>
+
+  <line x1="310" y1="205" x2="262" y2="228" stroke="#ffffff" stroke-width="1.2" opacity="0.18"/>
+  <line x1="306" y1="295" x2="248" y2="315" stroke="#ffffff" stroke-width="1.0" opacity="0.14"/>
+  <line x1="368" y1="190" x2="420" y2="212" stroke="#ffffff" stroke-width="1.2" opacity="0.18"/>
+  <line x1="372" y1="278" x2="428" y2="296" stroke="#ffffff" stroke-width="1.0" opacity="0.14"/>
+
+  <circle cx="340" cy="142" r="5" fill="#ffffff" opacity="1.0"/>
+  <circle cx="340" cy="142" r="14" fill="#ffffff" opacity="0.20"/>
+  <circle cx="340" cy="142" r="30" fill="#ffffff" opacity="0.07"/>
+</g>
+
+<!-- AYRAÇ -->
+<line x1="248" y1="48" x2="248" y2="232" stroke="#333333" stroke-width="1" opacity="0.6"/>
+
+<!-- entropy yazısı -->
+<text
+  x="278" y="178"
+  font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+  font-size="96"
+  font-weight="700"
+  letter-spacing="-3"
+  fill="url(#textGrad)">entropy</text>
+</svg>
